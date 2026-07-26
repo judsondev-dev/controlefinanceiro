@@ -43,7 +43,7 @@
 
   <div id="appArea">
 
-    <!-- Barra fixa: navegação de mês, saldos e atalhos de seção -->
+    <!-- Barra fixa: navegação de mês e saldos (menor, para não tomar tela no celular) -->
     <div class="topbar">
       <div class="tb-nav">
         <button class="tb-btn" id="tbPrev" title="Mês anterior">‹</button>
@@ -55,14 +55,16 @@
         <div class="tb-m"><span class="tb-lbl">Menor saldo</span><span class="tb-val" id="tbMenor">—</span></div>
         <div class="tb-m"><span class="tb-lbl">Saldo final</span><span class="tb-val" id="tbFinal">—</span></div>
       </div>
-      <nav class="tb-quicknav" id="quickNav" aria-label="Atalhos de seção">
-        <a class="qn-pill" href="#secResumo">📊 Resumo</a>
-        <a class="qn-pill" href="#secLancar">✏️ Lançar</a>
-        <a class="qn-pill" href="#secAnalises">🔎 Análises</a>
-        <a class="qn-pill" href="#secEspera">⏳ Em espera</a>
-        <a class="qn-pill" href="#secFluxo">📅 Fluxo diário</a>
-      </nav>
     </div>
+
+    <!-- Atalhos de seção (não fixo — rola junto com a página) -->
+    <nav class="tb-quicknav" id="quickNav" aria-label="Atalhos de seção">
+      <a class="qn-pill" href="#secResumo">📊 Resumo</a>
+      <a class="qn-pill" href="#secLancar">✏️ Lançar</a>
+      <a class="qn-pill" href="#secAnalises">🔎 Análises</a>
+      <a class="qn-pill" href="#secEspera">⏳ Em espera</a>
+      <a class="qn-pill" href="#secFluxo">📅 Fluxo diário</a>
+    </nav>
 
     <!-- ===================== RESUMO DO MÊS ===================== -->
     <div class="secao anchor" id="secResumo">

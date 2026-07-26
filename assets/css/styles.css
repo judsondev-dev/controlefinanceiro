@@ -99,14 +99,17 @@ button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size
 .tb-val{font-weight:800;font-variant-numeric:tabular-nums}
 .tb-val.neg{color:var(--out)} .tb-val.pos{color:var(--in)}
 
-/* Atalhos de seção (dentro da barra fixa, vira uma nova linha) */
-.tb-quicknav{display:flex;gap:8px;flex-basis:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  padding-top:9px;margin-top:2px;border-top:1px solid var(--border)}
+/* Atalhos de seção — barra própria (não fixa), rola junto com a página */
+.tb-quicknav{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding:9px 4px;margin:-4px 0 16px;background:var(--panel2);border:1px solid var(--border);
+  border-radius:12px}
 .tb-quicknav::-webkit-scrollbar{height:4px}
-.qn-pill{flex-shrink:0;font-size:12px;font-weight:600;color:var(--muted);background:var(--panel2);
-  border:1px solid var(--border-strong);border-radius:20px;padding:5px 12px;text-decoration:none;
+.qn-pill{flex-shrink:0;font-size:12px;font-weight:600;color:var(--muted);background:var(--bg2);
+  border:1px solid var(--border-strong);border-radius:20px;padding:6px 13px;text-decoration:none;
   white-space:nowrap;transition:.15s}
 .qn-pill:hover{background:#e8eef7;color:var(--text)}
+.qn-pill:first-child{margin-left:6px}
+.qn-pill:last-child{margin-right:6px}
 
 /* ---------- Seções (agrupam painéis relacionados com um título) ---------- */
 .secao{margin-bottom:6px}
@@ -114,7 +117,7 @@ button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size
   letter-spacing:.08em;margin:26px 0 12px;display:flex;align-items:center;gap:10px}
 .secao-titulo::after{content:"";flex:1;height:1px;background:var(--border)}
 .secao:first-of-type .secao-titulo{margin-top:2px}
-.anchor{scroll-margin-top:112px}
+.anchor{scroll-margin-top:132px}
 
 /* ---------- Botão flutuante: novo lançamento ---------- */
 .fab-add{position:fixed;right:24px;bottom:26px;width:56px;height:56px;border-radius:50%;border:none;
@@ -169,7 +172,9 @@ td.saldo{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .pill.out{background:var(--out-soft);color:var(--out)}
 
 /* ---------- Ícones de ação ---------- */
-.del-x,.edit-x,.skip-x,.restore-x,.ico{cursor:pointer;color:var(--faint);font-weight:700;padding:0 5px;border-radius:6px}
+.del-x,.edit-x,.skip-x,.restore-x,.ico{cursor:pointer;color:var(--faint);font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;min-width:26px;min-height:26px;
+  padding:0 4px;border-radius:8px}
 .del-x:hover{background:var(--out-soft);color:var(--out)}
 .edit-x:hover{background:rgba(37,99,235,.18);color:#2563eb}
 .skip-x:hover{background:rgba(255,176,32,.18);color:#b45309}
@@ -302,6 +307,10 @@ td.saldo{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
   /* Modal praticamente em tela cheia */
   .modal{max-width:100%;max-height:88vh}
   .modal-overlay{padding:10px}
+
+  /* Ícones de ação maiores para toque no celular */
+  .del-x,.edit-x,.skip-x,.restore-x,.ico{min-width:34px;min-height:34px;font-size:15px}
+  .pend-lancar{padding:7px 12px;font-size:13px}
 }
 
 /* Celulares pequenos */
