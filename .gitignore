@@ -1,0 +1,34 @@
+# =====================================================================
+# Controle Financeiro — arquivos que NÃO devem ir para o repositório
+# =====================================================================
+
+# Credenciais do Supabase (use config.example.js como modelo)
+assets/js/config.js
+
+# Versão antiga de arquivo único — CONTÉM A CHAVE EMBUTIDA, nunca publicar
+controle-financeiro-supabase.html
+
+# Backups exportados pelo app
+*-backup.json
+controle-financeiro-backup*.json
+
+# Extratos bancários (dados sensíveis)
+*.ofx
+extratos/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Configurações locais do Claude Code
+.claude/
+
+# Dependências (caso um dia use build/npm)
+node_modules/
+dist/
