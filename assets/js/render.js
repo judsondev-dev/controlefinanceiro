@@ -242,8 +242,12 @@ function agrupaPorCategoria(itens, tipo){
   return Object.entries(mapa).map(([nome,valor])=>({nome,valor})).sort((a,b)=>b.valor-a.valor);
 }
 
-/** Desenha um ranking de categorias (clicável). */
-function renderRank(elId, lista, total, cls){
+/**
+ * Desenha um ranking de categorias (clicável). Quando totalReceita é
+ * informado (usado nas despesas), mostra também quanto a categoria
+ * representa da receita total do mês — ex.: "Aluguel · 32% da receita".
+ */
+function renderRank(elId, lista, total, cls, totalReceita){
   const el = document.getElementById(elId);
   if(!lista.length){ el.innerHTML = '<div class="rank-empty">Nenhum lançamento neste mês.</div>'; return; }
   const max = lista[0].valor || 1;
@@ -253,9 +257,14 @@ function renderRank(elId, lista, total, cls){
   top.forEach(item=>{
     const pct = total>0 ? Math.round(item.valor/total*100) : 0;
     const larg = Math.max(4, Math.round(item.valor/max*100));
+    const temReceita = totalReceita!=null && totalReceita>0;
+    const pctReceita = temReceita ? Math.round(item.valor/totalReceita*100) : 0;
+    const pctReceitaHtml = totalReceita!=null
+      ? ' <span class="rk-pct rk-pct-receita">· '+(temReceita?pctReceita+"% da receita":"sem receita no mês")+'</span>'
+      : '';
     html += '<li class="rk-click" title="Ver lançamentos" data-cat="'+encodeURIComponent(item.nome)+'" data-tipo="'+tipo+'">'+
       '<div class="rk-top"><span class="rk-name">'+escapeHtml(item.nome)+
-        '<span class="rk-pct">'+pct+'% do total</span></span>'+
+        '<span class="rk-pct">'+pct+'% do total</span>'+pctReceitaHtml+'</span>'+
         '<span class="rk-val '+cls+'">'+fmt(item.valor)+'</span></div>'+
       '<div class="bar"><span class="'+cls+'" style="width:'+larg+'%"></span></div>'+
     '</li>';
@@ -266,7 +275,7 @@ function renderRank(elId, lista, total, cls){
 
 function renderInsights(itens, totalIn, totalOut){
   renderRank("topReceitas", agrupaPorCategoria(itens,"entrada"), totalIn, "in");
-  renderRank("topDespesas", agrupaPorCategoria(itens,"saida"), totalOut, "out");
+  renderRank("topDespesas", agrupaPorCategoria(itens,"saida"), totalOut, "out", totalIn);
 }
 
 /* ---------- Pendentes (em espera) ---------- */
