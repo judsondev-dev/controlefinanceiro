@@ -11,7 +11,7 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 - Contas **fixas** (repetem todo mês), com opção de editar/pular/antecipar em um mês específico
 - Compras **parceladas** (lançadas automaticamente nos meses seguintes)
 - **Em espera** (a receber / a pagar): itens fora do fluxo até você dar baixa; suporta itens **mensais**
-- **Importação de extrato** em CSV e OFX — os itens entram como "em espera" para você classificar e lançar
+- **Importação de extrato** em CSV e OFX, com escolha do período (De/Até) a importar — útil quando o arquivo é do mês inteiro mas você só quer trazer um dia ou intervalo por vez; os itens entram como "em espera" para você classificar e lançar
 - Gráfico da evolução do saldo e ranking de **maiores receitas/despesas por categoria** (clicável)
 - **Projeção dos próximos meses** (6/12/24): saldo inicial, entradas, saídas, menor saldo e saldo final projetados a partir das contas fixas e parcelas já lançadas; clique numa linha para ir direto àquele mês
 - **Orçamento por categoria**: defina um limite mensal de gasto por categoria, acompanhe pela barra de progresso e receba um alerta quando estourar
