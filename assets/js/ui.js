@@ -127,7 +127,7 @@ function iniciarEdicaoPendente(id){
   document.getElementById("recorrente").disabled = false; // pode alternar "mensal"
   document.getElementById("emEspera").checked = true;
   document.getElementById("emEspera").disabled = true;
-  const pr = document.getElementById("parcelas"); pr.value="1"; pr.disabled=true;
+  const pr = document.getElementById("parcelas"); pr.value="1"; pr.disabled=false; // >1 lança parcelado direto no fluxo
   document.getElementById("btnAdd").textContent = "Salvar em espera";
   document.getElementById("btnCancelarEd").style.display = "inline-block";
   destacarFormulario();

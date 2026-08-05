@@ -360,7 +360,11 @@ async function baixaDireta(id){
   finally{ ocupado=false; }
 }
 
-/** Salva a edição de um item em espera. */
+/**
+ * Salva a edição de um item em espera. Se "Parcelas" for maior que 1,
+ * em vez de só atualizar o pendente, lança as parcelas direto no fluxo
+ * (mesmo comportamento da baixa) e remove o item de "em espera".
+ */
 async function salvarEdicaoPendente(){
   const tipo=document.getElementById("tipo").value;
   const diaRaw=parseInt(document.getElementById("dia").value,10);
@@ -368,9 +372,37 @@ async function salvarEdicaoPendente(){
   const categoria=document.getElementById("categoria").value.trim();
   const valor=parseFloat(document.getElementById("valor").value);
   const recorrente=document.getElementById("recorrente").checked;
+  let parcelas=parseInt(document.getElementById("parcelas").value,10);
+  if(isNaN(parcelas)||parcelas<1) parcelas=1;
   if(isNaN(valor)||valor<=0){ toast("Informe um valor maior que zero.", "erro"); return; }
-  const venc_dia = (diaRaw>=1 && diaRaw<=31) ? diaRaw : null;
   const {id} = editandoPend;
+
+  if(parcelas>1){
+    if(!diaRaw||diaRaw<1||diaRaw>31){ toast("Informe um dia válido (1 a 31) para lançar parcelado.", "erro"); return; }
+    const pend = state.pendentes.find(x=>x.id===id);
+    const anoBase = (pend && pend.venc_ano!=null) ? pend.venc_ano : state.ano;
+    const mesBase = (pend && pend.venc_mes!=null) ? pend.venc_mes : state.mes;
+    try{
+      const grupo = (crypto.randomUUID? crypto.randomUUID() : String(Date.now()));
+      const rows=[];
+      for(let i=0;i<parcelas;i++){
+        const alvo=new Date(anoBase, mesBase+i, 1);
+        const ano=alvo.getFullYear(), mes=alvo.getMonth();
+        const diaAlvo=Math.min(diaRaw, diasNoMes(ano,mes));
+        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor});
+      }
+      const {data,error}=await db.from("lancamentos").insert(rows).select(); if(error) throw error;
+      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
+      const {error:eDel}=await db.from("pendentes").delete().eq("id",id); if(eDel) throw eDel;
+      state.pendentes=state.pendentes.filter(x=>x.id!==id);
+      finalizarEdicao();
+      render();
+      toast("Lançado em "+parcelas+" parcelas.");
+    }catch(e){ toast("Erro ao lançar parcelado: "+(e.message||e), "erro"); }
+    return;
+  }
+
+  const venc_dia = (diaRaw>=1 && diaRaw<=31) ? diaRaw : null;
   try{
     const patch={tipo, descricao, categoria, valor, venc_dia, recorrente};
     const {error}=await db.from("pendentes").update(patch).eq("id",id); if(error) throw error;
