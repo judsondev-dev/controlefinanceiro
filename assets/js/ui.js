@@ -105,7 +105,7 @@ function iniciarBaixa(id){
   document.getElementById("recorrente").disabled = true;
   document.getElementById("emEspera").checked = false;
   document.getElementById("emEspera").disabled = true;
-  const pr = document.getElementById("parcelas"); pr.value="1"; pr.disabled=true;
+  const pr = document.getElementById("parcelas"); pr.value="1"; pr.disabled=false; // permite parcelar ao dar baixa
   document.getElementById("btnAdd").textContent = "Confirmar baixa → "+MESES[state.mes]+"/"+state.ano;
   document.getElementById("btnCancelarEd").style.display = "inline-block";
   destacarFormulario();
