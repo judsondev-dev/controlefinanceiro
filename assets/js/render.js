@@ -299,9 +299,9 @@ function renderTiposLista(elId, itens){
   el.innerHTML = html;
 }
 
-/** Separa os lançamentos do mês em avulso / parcelado / fixo e desenha os três blocos. */
+/** Separa as despesas do mês em avulso / parcelado / fixo e desenha os três blocos (entradas não entram). */
 function renderTipos(itens){
-  const validos = itens.filter(it=>!it.pulado);
+  const validos = itens.filter(it=>!it.pulado && it.tipo==="saida");
   const fixos = validos.filter(it=>it.rec);
   const parcelados = validos.filter(it=>!it.rec && it.grupo);
   const avulsos = validos.filter(it=>!it.rec && !it.grupo);
