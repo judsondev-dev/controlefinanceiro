@@ -81,16 +81,25 @@ create table if not exists public.pendentes (
 );
 
 -- --------------------------------------------------------------------
--- Orçamentos por categoria (limite mensal de gasto) — usado nas barras
--- de progresso e no alerta do painel "Orçamento por categoria".
--- Considera apenas saídas da categoria no mês selecionado.
+-- Metas e compromissos por categoria (valor mensal a cumprir) — usado
+-- nas barras de progresso do painel "Metas e compromissos por categoria".
+-- "tipo" define se a meta é de saída (ex.: limite de gasto) ou de
+-- entrada (ex.: meta de investimento/aporte); o progresso soma só os
+-- lançamentos da categoria com esse mesmo tipo, no mês selecionado.
 -- --------------------------------------------------------------------
 create table if not exists public.orcamentos (
   id         uuid primary key default gen_random_uuid(),
-  categoria  text not null unique,
+  categoria  text not null,
+  tipo       text not null default 'saida' check (tipo in ('entrada','saida')),
   limite     numeric(14,2) not null check (limite > 0),
   created_at timestamptz not null default now()
 );
+-- Migração de bancos já existentes (idempotente, seguro rodar de novo):
+-- remove a antiga restrição de categoria única (agora pode haver uma
+-- meta de entrada e uma de saída para a mesma categoria) e garante a
+-- coluna "tipo" em instalações criadas antes dela existir.
+alter table public.orcamentos drop constraint if exists orcamentos_categoria_key;
+alter table public.orcamentos add column if not exists tipo text not null default 'saida' check (tipo in ('entrada','saida'));
 
 -- --------------------------------------------------------------------
 -- Índices

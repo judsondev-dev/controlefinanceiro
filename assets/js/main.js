@@ -61,7 +61,7 @@ function init(){
     });
   });
 
-  // Orçamento por categoria
+  // Metas e compromissos por categoria
   document.getElementById("btnSalvarOrc").addEventListener("click", salvarOrcamento);
   ["orcCategoria","orcLimite"].forEach(id=>{
     document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter") salvarOrcamento(); });
@@ -70,6 +70,7 @@ function init(){
     const ed=e.target.closest(".orc-edit");
     if(ed){
       document.getElementById("orcCategoria").value=decodeURIComponent(ed.dataset.cat);
+      document.getElementById("orcTipo").value=ed.dataset.tipo;
       document.getElementById("orcLimite").value=ed.dataset.lim;
       document.getElementById("orcCategoria").focus();
       return;

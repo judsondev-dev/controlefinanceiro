@@ -227,24 +227,31 @@
         </div>
       </div>
 
-      <!-- Orçamento por categoria -->
+      <!-- Metas e compromissos por categoria -->
       <div class="panel">
         <div class="flex-sp">
-          <h2 style="margin:0">🎯 Orçamento por categoria</h2>
+          <h2 style="margin:0">🎯 Metas e compromissos por categoria</h2>
         </div>
-        <div class="warn" id="orcAlerta"></div>
+        <div class="info-ok" id="orcAlerta"></div>
         <div class="row">
           <div class="field grow">
             <label for="orcCategoria">Categoria</label>
-            <input type="text" id="orcCategoria" list="cats" placeholder="Ex.: Mercado, Lazer...">
+            <input type="text" id="orcCategoria" list="cats" placeholder="Ex.: Investimento, Mercado...">
           </div>
           <div class="field">
-            <label for="orcLimite">Limite mensal (R$)</label>
+            <label for="orcTipo">Tipo</label>
+            <select id="orcTipo">
+              <option value="saida">Saída (ex.: limite de gasto)</option>
+              <option value="entrada">Entrada (ex.: meta de investimento/aporte)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="orcLimite">Meta mensal (R$)</label>
             <input type="number" id="orcLimite" step="0.01" placeholder="0,00">
           </div>
-          <button class="btn-primary" id="btnSalvarOrc">Salvar orçamento</button>
+          <button class="btn-primary" id="btnSalvarOrc">Salvar meta</button>
         </div>
-        <div class="hint">Defina um limite mensal de gasto por categoria (considera apenas saídas). A barra mostra o quanto já foi gasto no mês selecionado. Clique no <strong>✎</strong> de um orçamento para editar o limite.</div>
+        <div class="hint">Defina uma meta mensal por categoria — de <strong>saída</strong> (ex.: limite de gasto) ou de <strong>entrada</strong> (ex.: "quero investir/aportar até R$ 300 no mês"). Conforme você for lançando na categoria, a barra vai abatendo até cumprir a meta. Clique no <strong>✎</strong> de uma meta para editar.</div>
         <div id="orcamentosLista" style="margin-top:14px"></div>
       </div>
     </div>

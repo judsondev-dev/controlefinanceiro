@@ -59,7 +59,7 @@ async function carregar(){
       baixa_ano: x.baixa_ano, baixa_mes: x.baixa_mes,
       venc_ano: x.venc_ano, venc_mes: x.venc_mes
     }));
-    state.orcamentos = (b.data||[]).map(x=>({id:x.id, categoria:x.categoria, limite:Number(x.limite)}));
+    state.orcamentos = (b.data||[]).map(x=>({id:x.id, categoria:x.categoria, tipo:x.tipo||"saida", limite:Number(x.limite)}));
     render();
   }catch(e){
     alert("Erro ao carregar dados: "+(e.message||e)+"\nConfira a URL/chave e se as tabelas foram criadas.");
