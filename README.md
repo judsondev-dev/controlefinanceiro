@@ -15,6 +15,7 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 - Gráfico da evolução do saldo e ranking de **maiores receitas/despesas por categoria** (clicável)
 - **Projeção dos próximos meses** (6/12/24): saldo inicial, entradas, saídas, menor saldo e saldo final projetados a partir das contas fixas e parcelas já lançadas; clique numa linha para ir direto àquele mês
 - **Orçamento por categoria**: defina um limite mensal de gasto por categoria, acompanhe pela barra de progresso e receba um alerta quando estourar
+- **Avulso, parcelado e fixo**: veja de um lugar só quantos lançamentos do mês são únicos, parte de uma compra parcelada ou conta fixa (com total de cada); clique num item para ir até o dia dele no fluxo
 - Avisos de erro em **toast** não bloqueante, com **desfazer** ao remover um lançamento ou item em espera, e aviso quando a conexão com a internet cai
 - Confirmações (excluir, limpar mês, importar extrato...) em um **diálogo com o visual do app**, no lugar do pop-up padrão do navegador
 - Navegação por mês, seções recolhíveis (**todas começam fechadas** — clique no título para abrir a que precisar; a escolha fica salva no navegador) e layout **responsivo** (funciona no celular)

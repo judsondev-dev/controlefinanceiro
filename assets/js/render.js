@@ -46,6 +46,7 @@ function render(){
     if(ehMesAtual && d===hoje.getDate()) cls.push("today");
     if(neg) cls.push("neg");
     tr.className = cls.join(" ");
+    tr.dataset.dia = d;
 
     const tdDia = document.createElement("td");
     tdDia.className="day-cell";
@@ -141,6 +142,7 @@ function render(){
   atualizaCategorias();
   renderChart(chartLabels, chartSaldo);
   renderInsights(itens, totalIn, totalOut);
+  renderTipos(itens);
   renderProjecao();
   renderOrcamentos();
   renderPendentes();
@@ -276,6 +278,44 @@ function renderRank(elId, lista, total, cls, totalReceita){
 function renderInsights(itens, totalIn, totalOut){
   renderRank("topReceitas", agrupaPorCategoria(itens,"entrada"), totalIn, "in");
   renderRank("topDespesas", agrupaPorCategoria(itens,"saida"), totalOut, "out", totalIn);
+}
+
+/* ---------- Avulso, parcelado e fixo ---------- */
+
+/** Desenha uma lista clicável (vai até o dia no fluxo) de um dos três grupos. */
+function renderTiposLista(elId, itens){
+  const el = document.getElementById(elId);
+  if(!itens.length){ el.innerHTML = '<div class="rank-empty">Nenhum neste mês.</div>'; return; }
+  let html = '<ul class="pend">';
+  itens.slice().sort((a,b)=>a.dia-b.dia).forEach(it=>{
+    const cat = it.categoria ? ' <span class="cat">('+escapeHtml(it.categoria)+')</span>' : "";
+    html += '<li class="tipos-row" data-dia="'+it.dia+'" title="Ver no fluxo, dia '+String(it.dia).padStart(2,"0")+'">'+
+      '<span class="pend-info"><span class="pend-venc">dia '+String(it.dia).padStart(2,"0")+'</span>'+
+        ' <span class="pend-desc">'+escapeHtml(it.descricao||"(sem descrição)")+'</span>'+cat+'</span>'+
+      '<span class="pend-val '+(it.tipo==="entrada"?"in":"out")+'">'+fmt(Number(it.valor))+'</span>'+
+    '</li>';
+  });
+  html += '</ul>';
+  el.innerHTML = html;
+}
+
+/** Separa os lançamentos do mês em avulso / parcelado / fixo e desenha os três blocos. */
+function renderTipos(itens){
+  const validos = itens.filter(it=>!it.pulado);
+  const fixos = validos.filter(it=>it.rec);
+  const parcelados = validos.filter(it=>!it.rec && it.grupo);
+  const avulsos = validos.filter(it=>!it.rec && !it.grupo);
+  const soma = arr => arr.reduce((s,it)=> s+Number(it.valor), 0);
+
+  const cards = document.getElementById("tiposCards");
+  cards.innerHTML = "";
+  cards.appendChild(cardEl("Avulsos ("+avulsos.length+")", fmt(soma(avulsos)), ""));
+  cards.appendChild(cardEl("Parcelados ("+parcelados.length+")", fmt(soma(parcelados)), ""));
+  cards.appendChild(cardEl("Fixos ("+fixos.length+")", fmt(soma(fixos)), ""));
+
+  renderTiposLista("tpAvulsoLista", avulsos);
+  renderTiposLista("tpParceladoLista", parcelados);
+  renderTiposLista("tpFixoLista", fixos);
 }
 
 /* ---------- Pendentes (em espera) ---------- */

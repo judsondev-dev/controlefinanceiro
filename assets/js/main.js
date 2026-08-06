@@ -53,6 +53,14 @@ function init(){
     window.scrollTo({top:0, behavior:"smooth"});
   });
 
+  // Avulso, parcelado e fixo — clique num item vai até o dia dele no fluxo
+  ["tpAvulsoLista","tpParceladoLista","tpFixoLista"].forEach(id=>{
+    document.getElementById(id).addEventListener("click", e=>{
+      const li=e.target.closest(".tipos-row");
+      if(li) irParaDiaNoFluxo(parseInt(li.dataset.dia,10));
+    });
+  });
+
   // Orçamento por categoria
   document.getElementById("btnSalvarOrc").addEventListener("click", salvarOrcamento);
   ["orcCategoria","orcLimite"].forEach(id=>{

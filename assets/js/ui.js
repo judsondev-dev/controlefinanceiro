@@ -229,6 +229,20 @@ function initColapsaveis(){
   });
 }
 
+/** Rola até a linha de um dia específico no fluxo de caixa e a realça brevemente. */
+function irParaDiaNoFluxo(dia){
+  const painel = document.getElementById("secFluxo");
+  expandirSeSeNecessario(painel);
+  painel.scrollIntoView({behavior:"smooth", block:"start"});
+  setTimeout(()=>{
+    const tr = document.querySelector('#tbody tr[data-dia="'+dia+'"]');
+    if(!tr) return;
+    tr.scrollIntoView({behavior:"smooth", block:"center"});
+    tr.classList.add("flash");
+    setTimeout(()=>tr.classList.remove("flash"), 1200);
+  }, 400);
+}
+
 /* ---------- Diversos ---------- */
 
 /** Baixa um backup JSON dos dados carregados. */

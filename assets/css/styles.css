@@ -187,6 +187,21 @@ td.saldo{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
   border-radius:12px;margin-bottom:18px;font-size:13px;display:none}
 .warn.show{display:block}
 
+/* ---------- Avulso, parcelado e fixo ---------- */
+.tipos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.tipos-subtitulo{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  font-weight:700;margin-bottom:8px}
+.tipos-row{cursor:pointer;border-radius:8px;padding:2px 6px;margin:0 -6px;transition:background .12s}
+.tipos-row:hover{background:rgba(37,99,235,.10)}
+@media(max-width:720px){ .tipos-grid{grid-template-columns:1fr} }
+
+/* Realce temporário ao ir para um dia específico do fluxo */
+@keyframes flashRow{
+  0%,100%{background:transparent}
+  25%,75%{background:rgba(37,99,235,.18)}
+}
+tr.flash td{animation:flashRow 1.1s ease}
+
 /* ---------- Insights (ranking por categoria) ---------- */
 .insights{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 #topReceitas,#topDespesas{max-height:300px;overflow-y:auto;padding-right:6px}
