@@ -5,7 +5,8 @@
 
 /** Chaves usadas no localStorage. */
 const CFG_KEY = "cf_supabase_cfg";        // credenciais salvas no navegador
-const SEC_KEY = "cf_secoes_abertas";      // seções que o usuário abriu (tudo começa fechado)
+const SEC_KEY = "cf_secoes_fechadas";     // seções que o usuário fechou (tudo começa aberto)
+const MODULO_KEY = "cf_modulo_atual";     // último módulo visto no menu lateral
 
 let db = null;            // cliente supabase-js
 let editando = null;      // {id, rec} quando editando um lançamento

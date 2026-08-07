@@ -5,6 +5,32 @@
    ===================================================================== */
 "use strict";
 
+/* ---------- Menu lateral / módulos ---------- */
+
+/** Mostra um módulo (grupo de painéis) e esconde os demais. */
+function mostrarModulo(id){
+  document.querySelectorAll(".modulo").forEach(m=>{ m.hidden = (m.id!==id); });
+  document.querySelectorAll(".nav-item").forEach(b=>{ b.classList.toggle("active", b.dataset.modulo===id); });
+  localStorage.setItem(MODULO_KEY, id);
+  fecharSidebarMobile();
+  window.scrollTo(0,0);
+  // canvas de gráfico não tem tamanho certo enquanto o módulo estava escondido
+  if(id==="secResumo" && chartInst){ setTimeout(()=>{ try{chartInst.resize();}catch(e){} }, 60); }
+  if(id==="secAnalises" && chartInstProj){ setTimeout(()=>{ try{chartInstProj.resize();}catch(e){} }, 60); }
+}
+
+/** Fecha o menu lateral no celular (não faz nada no desktop, onde ele fica fixo). */
+function fecharSidebarMobile(){
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebarOverlay").classList.remove("show");
+}
+
+/** Abre o menu lateral no celular. */
+function abrirSidebarMobile(){
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("sidebarOverlay").classList.add("show");
+}
+
 /* ---------- Formulário: edição de lançamento ---------- */
 
 /** Carrega um lançamento no formulário para edição. */
@@ -65,19 +91,21 @@ function expandirSeSeNecessario(painel){
   }
 }
 
-/** Destaca o painel do formulário e rola até ele (expande se estiver recolhido). */
+/** Destaca o painel do formulário e rola até ele (troca pro módulo "Lançar" e expande se preciso). */
 function destacarFormulario(){
   const painel = document.getElementById("descricao").closest(".panel");
   if(!painel) return;
+  mostrarModulo("secLancar");
   expandirSeSeNecessario(painel);
   painel.classList.add("editando-form");
   painel.scrollIntoView({behavior:"smooth", block:"center"});
 }
 
-/** Atalho do botão flutuante "+": abre a seção, expande se estiver recolhida e foca a descrição. */
+/** Atalho do botão flutuante "+": vai pro módulo "Lançar", expande se preciso e foca a descrição. */
 function abrirNovoLancamento(){
   const painel = document.getElementById("descricao").closest(".panel");
   if(!painel) return;
+  mostrarModulo("secLancar");
   expandirSeSeNecessario(painel);
   painel.scrollIntoView({behavior:"smooth", block:"start"});
   setTimeout(()=>document.getElementById("descricao").focus(), 350);
@@ -193,54 +221,58 @@ function mudarMes(delta){
   syncConfigInputs(); render();
 }
 
-/** Vai para o mês atual e rola até a linha de hoje. */
+/** Vai para o mês atual e, se o módulo do fluxo estiver aberto, rola até a linha de hoje. */
 function irHoje(){
   const h=new Date();
   state.mes=h.getMonth(); state.ano=h.getFullYear();
   syncConfigInputs(); render();
-  setTimeout(()=>{ const el=document.querySelector("#tbody tr.today"); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }, 60);
+  const secFluxo = document.getElementById("secFluxo");
+  if(secFluxo && !secFluxo.hidden){
+    setTimeout(()=>{ const el=document.querySelector("#tbody tr.today"); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }, 60);
+  }
 }
 
 /* ---------- Seções recolhíveis ---------- */
-/* Padrão: tudo começa fechado. A lista salva guarda só as seções que o
-   usuário abriu manualmente (exceção ao padrão), não as fechadas. */
+/* Padrão: tudo começa aberto (os módulos já filtram o que aparece de
+   uma vez). A lista salva guarda só as seções que o usuário fechou
+   manualmente (exceção ao padrão), não as abertas. */
 
-function getSecsAbertas(){ try{ return JSON.parse(localStorage.getItem(SEC_KEY))||[]; }catch(e){ return []; } }
+function getSecsFechadas(){ try{ return JSON.parse(localStorage.getItem(SEC_KEY))||[]; }catch(e){ return []; } }
 
 function toggleSecao(h2){
   const panel=h2.closest(".panel"); if(!panel) return;
   const nome=(h2.textContent||"").trim();
   panel.classList.toggle("collapsed");
-  let secs=getSecsAbertas();
-  if(!panel.classList.contains("collapsed")){ if(!secs.includes(nome)) secs.push(nome); }
+  let secs=getSecsFechadas();
+  if(panel.classList.contains("collapsed")){ if(!secs.includes(nome)) secs.push(nome); }
   else { secs=secs.filter(s=>s!==nome); }
   localStorage.setItem(SEC_KEY, JSON.stringify(secs));
   if(chartInst && !panel.classList.contains("collapsed")) setTimeout(()=>{ try{chartInst.resize();}catch(e){} }, 60);
 }
 
 function initColapsaveis(){
-  const abertas=getSecsAbertas();
+  const fechadas=getSecsFechadas();
   document.querySelectorAll(".panel > h2, .panel .flex-sp > h2").forEach(h2=>{
     const painel = h2.closest(".panel");
-    if(painel.id==="connPanel") return; // conexão inicial: nunca começa fechada
+    if(painel.id==="connPanel") return;
     const nome=(h2.textContent||"").trim();
-    if(!abertas.includes(nome)) painel.classList.add("collapsed");
+    if(fechadas.includes(nome)) painel.classList.add("collapsed");
     h2.addEventListener("click", ()=>toggleSecao(h2));
   });
 }
 
-/** Rola até a linha de um dia específico no fluxo de caixa e a realça brevemente. */
+/** Vai pro módulo "Fluxo diário", rola até a linha do dia informado e a realça brevemente. */
 function irParaDiaNoFluxo(dia){
   const painel = document.getElementById("secFluxo");
+  mostrarModulo("secFluxo");
   expandirSeSeNecessario(painel);
-  painel.scrollIntoView({behavior:"smooth", block:"start"});
   setTimeout(()=>{
     const tr = document.querySelector('#tbody tr[data-dia="'+dia+'"]');
     if(!tr) return;
     tr.scrollIntoView({behavior:"smooth", block:"center"});
     tr.classList.add("flash");
     setTimeout(()=>tr.classList.remove("flash"), 1200);
-  }, 400);
+  }, 250);
 }
 
 /* ---------- Diversos ---------- */
@@ -251,9 +283,13 @@ function exportar(){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="controle-financeiro-backup.json"; a.click(); URL.revokeObjectURL(a.href);
 }
 
-/** Mostra/esconde a área do app conforme o status da conexão. */
+/** Mostra/esconde a área do app, o menu lateral e o atalho de hambúrguer conforme a conexão. */
 function mostrarStatus(conectado){
   document.getElementById("statusConn").textContent = conectado? "🟢 Conectado ao Supabase" : "🔴 Não conectado";
   document.getElementById("appArea").style.display = conectado? "block" : "none";
   document.getElementById("fabAdd").style.display = conectado? "flex" : "none";
+  document.getElementById("sidebar").style.display = conectado? "flex" : "none";
+  if(!conectado) fecharSidebarMobile();
+  // hambúrguer só faz sentido com o menu lateral disponível, e só no celular (a media query cuida do resto)
+  document.getElementById("btnHamburger").style.display = conectado? "" : "none";
 }

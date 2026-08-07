@@ -27,11 +27,41 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Inter",Aria
 .wrap{max-width:1200px;margin:0 auto;padding:22px 18px 40px}
 footer{text-align:center;color:var(--faint);font-size:12px;padding:24px}
 
+/* ---------- Layout: menu lateral + conteúdo ---------- */
+.app-shell{display:flex;min-height:100vh}
+.main-content{flex:1;min-width:0}
+
+.sidebar{width:230px;flex-shrink:0;background:#ffffff;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:sticky;top:0;align-self:flex-start;height:100vh;
+  overflow-y:auto;z-index:150}
+.sidebar-brand{display:flex;align-items:center;gap:12px;padding:20px 18px;border-bottom:1px solid var(--border)}
+.sidebar-titulo{font-size:14.5px;font-weight:750;letter-spacing:-.01em}
+.sidebar-sub{font-size:11.5px;color:var(--muted)}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:14px 10px}
+.nav-item{display:flex;align-items:center;gap:10px;text-align:left;background:none;border:none;
+  border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;
+  transition:.15s;width:100%}
+.nav-item:hover{background:var(--panel2);color:var(--text)}
+.nav-item.active{background:rgba(37,99,235,.12);color:var(--accent)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:140}
+.sidebar-overlay.show{display:block}
+
+@media(max-width:880px){
+  .sidebar{position:fixed;top:0;left:0;height:100vh;transform:translateX(-100%);
+    transition:transform .22s ease;box-shadow:0 0 40px rgba(0,0,0,.25)}
+  .sidebar.open{transform:translateX(0)}
+}
+
 /* ---------- Cabeçalho / marca ---------- */
 header.top{padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;color:var(--text);
   background:#ffffff;border-bottom:1px solid var(--border)}
 header.top h1{font-size:19px;margin:0;font-weight:750;letter-spacing:-.02em}
 header.top .sub{font-size:12.5px;color:var(--muted)}
+.top-left{display:flex;align-items:center;gap:14px}
+.hamburger{display:none;cursor:pointer;background:var(--panel2);border:1px solid var(--border-strong);color:var(--text);
+  border-radius:10px;width:38px;height:38px;font-size:17px;line-height:1;flex-shrink:0}
+.hamburger:hover{background:#e8eef7}
+@media(max-width:880px){ .hamburger{display:flex;align-items:center;justify-content:center} }
 .brand{display:flex;align-items:center;gap:13px}
 .logo{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;
   font-weight:800;font-size:16px;color:#fff;letter-spacing:-.02em;
@@ -99,25 +129,9 @@ button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size
 .tb-val{font-weight:800;font-variant-numeric:tabular-nums}
 .tb-val.neg{color:var(--out)} .tb-val.pos{color:var(--in)}
 
-/* Atalhos de seção — barra própria (não fixa), rola junto com a página */
-.tb-quicknav{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  padding:9px 4px;margin:-4px 0 16px;background:var(--panel2);border:1px solid var(--border);
-  border-radius:12px}
-.tb-quicknav::-webkit-scrollbar{height:4px}
-.qn-pill{flex-shrink:0;font-size:12px;font-weight:600;color:var(--muted);background:var(--bg2);
-  border:1px solid var(--border-strong);border-radius:20px;padding:6px 13px;text-decoration:none;
-  white-space:nowrap;transition:.15s}
-.qn-pill:hover{background:#e8eef7;color:var(--text)}
-.qn-pill:first-child{margin-left:6px}
-.qn-pill:last-child{margin-right:6px}
-
-/* ---------- Seções (agrupam painéis relacionados com um título) ---------- */
+/* ---------- Seções/módulos (grupo de painéis mostrado por vez) ---------- */
 .secao{margin-bottom:6px}
-.secao-titulo{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;
-  letter-spacing:.08em;margin:26px 0 12px;display:flex;align-items:center;gap:10px}
-.secao-titulo::after{content:"";flex:1;height:1px;background:var(--border)}
-.secao:first-of-type .secao-titulo{margin-top:2px}
-.anchor{scroll-margin-top:132px}
+.modulo[hidden]{display:none}
 
 /* ---------- Botão flutuante: novo lançamento ---------- */
 .fab-add{position:fixed;right:24px;bottom:26px;width:56px;height:56px;border-radius:50%;border:none;

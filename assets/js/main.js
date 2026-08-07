@@ -31,6 +31,16 @@ function init(){
   document.getElementById("tbHoje").addEventListener("click", irHoje);
   initColapsaveis();
 
+  // Menu lateral (módulos)
+  document.getElementById("sidebarNav").addEventListener("click", e=>{
+    const btn=e.target.closest(".nav-item");
+    if(btn) mostrarModulo(btn.dataset.modulo);
+  });
+  document.getElementById("btnHamburger").addEventListener("click", abrirSidebarMobile);
+  document.getElementById("sidebarOverlay").addEventListener("click", fecharSidebarMobile);
+  const moduloSalvo = localStorage.getItem(MODULO_KEY);
+  if(moduloSalvo && document.getElementById(moduloSalvo)) mostrarModulo(moduloSalvo);
+
   // Conexão com a internet (não confundir com a conexão ao Supabase)
   const atualizaConexaoBanner=()=>{
     const b=document.getElementById("offlineBanner");
@@ -50,7 +60,7 @@ function init(){
     if(!tr) return;
     state.ano=parseInt(tr.dataset.ano,10); state.mes=parseInt(tr.dataset.mes,10);
     syncConfigInputs(); render();
-    window.scrollTo({top:0, behavior:"smooth"});
+    mostrarModulo("secResumo");
   });
 
   // Avulso, parcelado e fixo — clique num item vai até o dia dele no fluxo

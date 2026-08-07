@@ -10,295 +10,310 @@
 
 <div class="offline-banner" id="offlineBanner" style="display:none">🔴 Sem conexão com a internet — as alterações não serão salvas até reconectar.</div>
 
-<header class="top">
-  <div class="brand">
-    <div class="logo">R$</div>
-    <div>
-      <h1>Controle Financeiro</h1>
-      <div class="sub">seu fluxo de caixa, simples e no controle</div>
-    </div>
-  </div>
-  <div class="sub" id="periodoLabel"></div>
-</header>
+<div class="app-shell">
 
-<div class="wrap">
-
-  <!-- Conexão Supabase (oculto quando as credenciais vêm do config.js) -->
-  <div class="panel" id="connPanel">
-    <h2>Conexão com o Supabase</h2>
-    <div class="row">
-      <div class="field grow">
-        <label for="supaUrl">Project URL</label>
-        <input type="text" id="supaUrl" placeholder="https://xxxxx.supabase.co">
-      </div>
-      <div class="field grow">
-        <label for="supaKey">Anon public key</label>
-        <input type="password" id="supaKey" placeholder="eyJhbGci...">
-      </div>
-      <button class="btn-primary" id="btnConectar">Conectar</button>
-      <div class="field"><span id="statusConn">🔴 Não conectado</span></div>
-    </div>
-    <div class="hint">Pegue esses valores em <strong>Supabase → Project Settings → API</strong>. Para não digitar toda vez, preencha o arquivo <code>assets/js/config.js</code>.</div>
-  </div>
-
-  <div id="appArea">
-
-    <!-- Barra fixa: navegação de mês e saldos (menor, para não tomar tela no celular) -->
-    <div class="topbar">
-      <div class="tb-nav">
-        <button class="tb-btn" id="tbPrev" title="Mês anterior">‹</button>
-        <span class="tb-period" id="tbPeriodo">—</span>
-        <button class="tb-btn" id="tbNext" title="Próximo mês">›</button>
-        <button class="tb-btn tb-hoje" id="tbHoje" title="Ir para o mês/dia atual">Hoje</button>
-      </div>
-      <div class="tb-metrics">
-        <div class="tb-m"><span class="tb-lbl">Menor saldo</span><span class="tb-val" id="tbMenor">—</span></div>
-        <div class="tb-m"><span class="tb-lbl">Saldo final</span><span class="tb-val" id="tbFinal">—</span></div>
+  <!-- Menu lateral (módulos) — oculto até conectar -->
+  <aside class="sidebar" id="sidebar" style="display:none">
+    <div class="sidebar-brand">
+      <div class="logo">R$</div>
+      <div>
+        <div class="sidebar-titulo">Controle Financeiro</div>
+        <div class="sidebar-sub">fluxo de caixa</div>
       </div>
     </div>
-
-    <!-- Atalhos de seção (não fixo — rola junto com a página) -->
-    <nav class="tb-quicknav" id="quickNav" aria-label="Atalhos de seção">
-      <a class="qn-pill" href="#secResumo">📊 Resumo</a>
-      <a class="qn-pill" href="#secLancar">✏️ Lançar</a>
-      <a class="qn-pill" href="#secAnalises">🔎 Análises</a>
-      <a class="qn-pill" href="#secEspera">⏳ Em espera</a>
-      <a class="qn-pill" href="#secFluxo">📅 Fluxo diário</a>
+    <nav class="sidebar-nav" id="sidebarNav" aria-label="Módulos">
+      <button type="button" class="nav-item active" data-modulo="secResumo">📊 <span>Resumo</span></button>
+      <button type="button" class="nav-item" data-modulo="secLancar">✏️ <span>Lançar</span></button>
+      <button type="button" class="nav-item" data-modulo="secAnalises">🔎 <span>Análises</span></button>
+      <button type="button" class="nav-item" data-modulo="secEspera">⏳ <span>Em espera</span></button>
+      <button type="button" class="nav-item" data-modulo="secFluxo">📅 <span>Fluxo diário</span></button>
     </nav>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- ===================== RESUMO DO MÊS ===================== -->
-    <div class="secao anchor" id="secResumo">
-      <div class="secao-titulo">📊 Resumo do mês</div>
+  <div class="main-content">
 
-      <!-- Alerta de saldo negativo -->
-      <div class="warn" id="alerta"></div>
-
-      <div class="panel">
-        <h2>Saldos e totais</h2>
-        <div class="cards" id="cards"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Evolução do saldo no mês</h2>
-        <div style="position:relative;height:280px"><canvas id="chartSaldo"></canvas></div>
-        <div class="hint">Linha do saldo acumulado dia a dia. A faixa abaixo de zero indica os dias em que o saldo fica negativo.</div>
-      </div>
-    </div>
-
-    <!-- ===================== LANÇAR & CONFIGURAR ===================== -->
-    <div class="secao anchor" id="secLancar">
-      <div class="secao-titulo">✏️ Lançar &amp; configurar</div>
-
-      <!-- Configuração do mês -->
-      <div class="panel">
-        <h2>Configuração do mês</h2>
-        <div class="row">
-          <div class="field">
-            <label for="mes">Mês</label>
-            <select id="mes"></select>
-          </div>
-          <div class="field">
-            <label for="ano">Ano</label>
-            <input type="number" id="ano" min="2000" max="2100">
-          </div>
-          <div class="field">
-            <label for="saldoInicial">Saldo inicial (R$)</label>
-            <input type="number" id="saldoInicial" step="0.01" placeholder="0,00">
-          </div>
-          <button class="btn-ghost" id="btnAplicar">Aplicar</button>
-        </div>
-        <div class="hint">O saldo inicial é o dinheiro que você tem no dia 1. É salvo ao sair do campo.</div>
-      </div>
-
-      <!-- Novo lançamento -->
-      <div class="panel">
-        <h2>Novo lançamento</h2>
-        <div class="row">
-          <div class="field">
-            <label for="tipo">Tipo</label>
-            <select id="tipo">
-              <option value="entrada">Entrada (recebimento)</option>
-              <option value="saida">Saída (conta a pagar)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="dia">Dia</label>
-            <input type="number" id="dia" min="1" max="31" value="1">
-          </div>
-          <div class="field">
-            <label for="descricao">Descrição</label>
-            <input type="text" id="descricao" placeholder="Ex.: Salário, Aluguel, Luz...">
-          </div>
-          <div class="field">
-            <label for="categoria">Categoria</label>
-            <input type="text" id="categoria" list="cats" placeholder="Ex.: Salário, Moradia...">
-            <datalist id="cats"></datalist>
-          </div>
-          <div class="field">
-            <label for="valor">Valor da parcela (R$)</label>
-            <input type="number" id="valor" step="0.01" placeholder="0,00">
-          </div>
-          <div class="field">
-            <label for="parcelas">Parcelas</label>
-            <input type="number" id="parcelas" min="1" max="360" value="1">
-          </div>
-          <div class="field">
-            <label for="recorrente" style="visibility:hidden">r</label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding-bottom:7px">
-              <input type="checkbox" id="recorrente" style="width:auto"> Repete todo mês
-            </label>
-          </div>
-          <div class="field">
-            <label for="emEspera" style="visibility:hidden">e</label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding-bottom:7px">
-              <input type="checkbox" id="emEspera" style="width:auto"> Em espera (não entra no fluxo)
-            </label>
-          </div>
-          <button class="btn-primary" id="btnAdd">+ Adicionar</button>
-          <button class="btn-ghost" id="btnCancelarEd" style="display:none">Cancelar</button>
-        </div>
-        <div class="hint">Use <strong>Parcelas</strong> para dividir uma compra: o valor informado é o de <em>cada</em> parcela, lançadas automaticamente nos meses seguintes com a marca (1/N). Clique no <strong>✎</strong> de um lançamento na tabela para editá-lo.</div>
-      </div>
-    </div>
-
-    <!-- ===================== ANÁLISES ===================== -->
-    <div class="secao anchor" id="secAnalises">
-      <div class="secao-titulo">🔎 Análises</div>
-
-      <!-- Projeção dos próximos meses -->
-      <div class="panel">
-        <div class="flex-sp">
-          <h2 style="margin:0">📈 Projeção dos próximos meses</h2>
-          <select id="projMeses" style="width:auto">
-            <option value="6">6 meses</option>
-            <option value="12" selected>12 meses</option>
-            <option value="24">24 meses</option>
-          </select>
-        </div>
-        <div style="position:relative;height:220px"><canvas id="chartProj"></canvas></div>
-        <div class="table-scroll" style="margin-top:14px">
-          <table>
-            <thead>
-              <tr>
-                <th>Mês</th>
-                <th style="text-align:right">Saldo inicial</th>
-                <th style="text-align:right">Entradas</th>
-                <th style="text-align:right">Saídas</th>
-                <th style="text-align:right">Menor saldo</th>
-                <th style="text-align:right">Saldo final</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyProj"></tbody>
-          </table>
-        </div>
-        <div class="hint">Projeção com base nas contas fixas e parcelas já lançadas a partir deste mês (não inclui itens "em espera" nem lançamentos avulsos futuros ainda não criados). Clique numa linha para ir até aquele mês.</div>
-      </div>
-
-      <!-- Avulso, parcelado e fixo (só despesas) -->
-      <div class="panel">
-        <h2>🏷️ Despesas: avulso, parcelado e fixo</h2>
-        <div class="cards" id="tiposCards"></div>
-        <div class="tipos-grid" style="margin-top:16px">
+    <header class="top">
+      <div class="top-left">
+        <button type="button" class="hamburger" id="btnHamburger" title="Menu" style="display:none">☰</button>
+        <div class="brand">
+          <div class="logo">R$</div>
           <div>
-            <div class="tipos-subtitulo">Avulsos</div>
-            <div id="tpAvulsoLista"></div>
+            <h1>Controle Financeiro</h1>
+            <div class="sub">seu fluxo de caixa, simples e no controle</div>
           </div>
-          <div>
-            <div class="tipos-subtitulo">Parcelados</div>
-            <div id="tpParceladoLista"></div>
-          </div>
-          <div>
-            <div class="tipos-subtitulo">Fixos</div>
-            <div id="tpFixoLista"></div>
-          </div>
-        </div>
-        <div class="hint">Como cada despesa deste mês foi criada: <strong>avulsa</strong> (única), <strong>parcelada</strong> (parte de uma compra em N vezes) ou <strong>fixa</strong> (conta recorrente). Entradas não entram aqui. Clique num item para ir até o dia dele no fluxo de caixa.</div>
-      </div>
-
-      <!-- Insights por categoria -->
-      <div class="insights">
-        <div class="panel">
-          <h2>Maiores receitas (por categoria)</h2>
-          <div id="topReceitas"></div>
-        </div>
-        <div class="panel">
-          <h2>Maiores despesas (por categoria)</h2>
-          <div id="topDespesas"></div>
         </div>
       </div>
+      <div class="sub" id="periodoLabel"></div>
+    </header>
 
-      <!-- Metas e compromissos por categoria -->
-      <div class="panel">
-        <div class="flex-sp">
-          <h2 style="margin:0">🎯 Metas e compromissos por categoria</h2>
-        </div>
-        <div class="info-ok" id="orcAlerta"></div>
+    <div class="wrap">
+
+      <!-- Conexão Supabase (oculto quando as credenciais vêm do config.js) -->
+      <div class="panel" id="connPanel">
+        <h2>Conexão com o Supabase</h2>
         <div class="row">
           <div class="field grow">
-            <label for="orcCategoria">Categoria</label>
-            <input type="text" id="orcCategoria" list="cats" placeholder="Ex.: Investimento, Mercado...">
+            <label for="supaUrl">Project URL</label>
+            <input type="text" id="supaUrl" placeholder="https://xxxxx.supabase.co">
           </div>
-          <div class="field">
-            <label for="orcTipo">Tipo</label>
-            <select id="orcTipo">
-              <option value="saida">Saída (ex.: limite de gasto)</option>
-              <option value="entrada">Entrada (ex.: meta de investimento/aporte)</option>
-            </select>
+          <div class="field grow">
+            <label for="supaKey">Anon public key</label>
+            <input type="password" id="supaKey" placeholder="eyJhbGci...">
           </div>
-          <div class="field">
-            <label for="orcLimite">Meta mensal (R$)</label>
-            <input type="number" id="orcLimite" step="0.01" placeholder="0,00">
+          <button class="btn-primary" id="btnConectar">Conectar</button>
+          <div class="field"><span id="statusConn">🔴 Não conectado</span></div>
+        </div>
+        <div class="hint">Pegue esses valores em <strong>Supabase → Project Settings → API</strong>. Para não digitar toda vez, preencha o arquivo <code>assets/js/config.js</code>.</div>
+      </div>
+
+      <div id="appArea">
+
+        <!-- Barra fixa: navegação de mês e saldos -->
+        <div class="topbar">
+          <div class="tb-nav">
+            <button class="tb-btn" id="tbPrev" title="Mês anterior">‹</button>
+            <span class="tb-period" id="tbPeriodo">—</span>
+            <button class="tb-btn" id="tbNext" title="Próximo mês">›</button>
+            <button class="tb-btn tb-hoje" id="tbHoje" title="Ir para o mês/dia atual">Hoje</button>
           </div>
-          <button class="btn-primary" id="btnSalvarOrc">Salvar meta</button>
+          <div class="tb-metrics">
+            <div class="tb-m"><span class="tb-lbl">Menor saldo</span><span class="tb-val" id="tbMenor">—</span></div>
+            <div class="tb-m"><span class="tb-lbl">Saldo final</span><span class="tb-val" id="tbFinal">—</span></div>
+          </div>
         </div>
-        <div class="hint">Defina uma meta mensal por categoria — de <strong>saída</strong> (ex.: limite de gasto) ou de <strong>entrada</strong> (ex.: "quero investir/aportar até R$ 300 no mês"). Conforme você for lançando na categoria, a barra vai abatendo até cumprir a meta. Clique no <strong>✎</strong> de uma meta para editar.</div>
-        <div id="orcamentosLista" style="margin-top:14px"></div>
-      </div>
-    </div>
 
-    <!-- ===================== EM ESPERA ===================== -->
-    <div class="panel anchor" id="secEspera">
-      <div class="flex-sp">
-        <h2 style="margin:0">⏳ Em espera — a receber / a pagar</h2>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span id="pendResumo" class="hint" style="margin:0"></span>
-          <button class="btn-ghost btn-sm" id="btnImportExtrato">📥 Importar extrato</button>
-          <input type="file" id="fileExtrato" accept=".csv,.ofx,.txt,text/csv" style="display:none">
+        <!-- ===================== RESUMO DO MÊS ===================== -->
+        <div class="secao modulo" id="secResumo">
+          <!-- Alerta de saldo negativo -->
+          <div class="warn" id="alerta"></div>
+
+          <div class="panel">
+            <h2>Saldos e totais</h2>
+            <div class="cards" id="cards"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Evolução do saldo no mês</h2>
+            <div style="position:relative;height:280px"><canvas id="chartSaldo"></canvas></div>
+            <div class="hint">Linha do saldo acumulado dia a dia. A faixa abaixo de zero indica os dias em que o saldo fica negativo.</div>
+          </div>
         </div>
-      </div>
-      <div id="pendentesLista"></div>
-      <div class="hint">Itens que ainda não entraram no fluxo. Ao receber/pagar, clique em <strong>Dar baixa</strong>, escolha a data e ele vai para o fluxo de caixa do mês selecionado. Marque <strong>"Em espera"</strong> no formulário acima para adicionar aqui. Marcando também <strong>"Repete todo mês"</strong>, o pendente vira <strong>🔁 mensal</strong> e continua na lista após a baixa, pronto para o próximo mês.</div>
-    </div>
 
-    <!-- ===================== FLUXO DE CAIXA DIÁRIO ===================== -->
-    <div class="panel anchor" id="secFluxo">
-      <div class="flex-sp">
-        <h2 style="margin:0">Fluxo de caixa dia a dia</h2>
-        <div style="display:flex;gap:8px">
-          <button class="btn-ghost btn-sm" id="btnExport">Exportar backup</button>
-          <button class="btn-danger btn-sm" id="btnLimpar">Limpar mês</button>
+        <!-- ===================== LANÇAR & CONFIGURAR ===================== -->
+        <div class="secao modulo" id="secLancar" hidden>
+          <!-- Configuração do mês -->
+          <div class="panel">
+            <h2>Configuração do mês</h2>
+            <div class="row">
+              <div class="field">
+                <label for="mes">Mês</label>
+                <select id="mes"></select>
+              </div>
+              <div class="field">
+                <label for="ano">Ano</label>
+                <input type="number" id="ano" min="2000" max="2100">
+              </div>
+              <div class="field">
+                <label for="saldoInicial">Saldo inicial (R$)</label>
+                <input type="number" id="saldoInicial" step="0.01" placeholder="0,00">
+              </div>
+              <button class="btn-ghost" id="btnAplicar">Aplicar</button>
+            </div>
+            <div class="hint">O saldo inicial é o dinheiro que você tem no dia 1. É salvo ao sair do campo.</div>
+          </div>
+
+          <!-- Novo lançamento -->
+          <div class="panel">
+            <h2>Novo lançamento</h2>
+            <div class="row">
+              <div class="field">
+                <label for="tipo">Tipo</label>
+                <select id="tipo">
+                  <option value="entrada">Entrada (recebimento)</option>
+                  <option value="saida">Saída (conta a pagar)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="dia">Dia</label>
+                <input type="number" id="dia" min="1" max="31" value="1">
+              </div>
+              <div class="field">
+                <label for="descricao">Descrição</label>
+                <input type="text" id="descricao" placeholder="Ex.: Salário, Aluguel, Luz...">
+              </div>
+              <div class="field">
+                <label for="categoria">Categoria</label>
+                <input type="text" id="categoria" list="cats" placeholder="Ex.: Salário, Moradia...">
+                <datalist id="cats"></datalist>
+              </div>
+              <div class="field">
+                <label for="valor">Valor da parcela (R$)</label>
+                <input type="number" id="valor" step="0.01" placeholder="0,00">
+              </div>
+              <div class="field">
+                <label for="parcelas">Parcelas</label>
+                <input type="number" id="parcelas" min="1" max="360" value="1">
+              </div>
+              <div class="field">
+                <label for="recorrente" style="visibility:hidden">r</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding-bottom:7px">
+                  <input type="checkbox" id="recorrente" style="width:auto"> Repete todo mês
+                </label>
+              </div>
+              <div class="field">
+                <label for="emEspera" style="visibility:hidden">e</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding-bottom:7px">
+                  <input type="checkbox" id="emEspera" style="width:auto"> Em espera (não entra no fluxo)
+                </label>
+              </div>
+              <button class="btn-primary" id="btnAdd">+ Adicionar</button>
+              <button class="btn-ghost" id="btnCancelarEd" style="display:none">Cancelar</button>
+            </div>
+            <div class="hint">Use <strong>Parcelas</strong> para dividir uma compra: o valor informado é o de <em>cada</em> parcela, lançadas automaticamente nos meses seguintes com a marca (1/N). Clique no <strong>✎</strong> de um lançamento na tabela para editá-lo.</div>
+          </div>
         </div>
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:90px">Dia</th>
-              <th>Lançamentos</th>
-              <th style="width:110px;text-align:right">Entradas</th>
-              <th style="width:110px;text-align:right">Saídas</th>
-              <th style="width:130px;text-align:right">Saldo do dia</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <div class="hint">O <strong>Saldo do dia</strong> é acumulado a partir do saldo inicial. Dias em <span style="color:var(--neg-text);font-weight:600">vermelho</span> indicam que o dinheiro não durou até pagar as contas.</div>
-    </div>
 
-  </div><!-- /appArea -->
+        <!-- ===================== ANÁLISES ===================== -->
+        <div class="secao modulo" id="secAnalises" hidden>
+          <!-- Projeção dos próximos meses -->
+          <div class="panel">
+            <div class="flex-sp">
+              <h2 style="margin:0">📈 Projeção dos próximos meses</h2>
+              <select id="projMeses" style="width:auto">
+                <option value="6">6 meses</option>
+                <option value="12" selected>12 meses</option>
+                <option value="24">24 meses</option>
+              </select>
+            </div>
+            <div style="position:relative;height:220px"><canvas id="chartProj"></canvas></div>
+            <div class="table-scroll" style="margin-top:14px">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th style="text-align:right">Saldo inicial</th>
+                    <th style="text-align:right">Entradas</th>
+                    <th style="text-align:right">Saídas</th>
+                    <th style="text-align:right">Menor saldo</th>
+                    <th style="text-align:right">Saldo final</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyProj"></tbody>
+              </table>
+            </div>
+            <div class="hint">Projeção com base nas contas fixas e parcelas já lançadas a partir deste mês (não inclui itens "em espera" nem lançamentos avulsos futuros ainda não criados). Clique numa linha para ir até aquele mês.</div>
+          </div>
 
-</div>
+          <!-- Avulso, parcelado e fixo (só despesas) -->
+          <div class="panel">
+            <h2>🏷️ Despesas: avulso, parcelado e fixo</h2>
+            <div class="cards" id="tiposCards"></div>
+            <div class="tipos-grid" style="margin-top:16px">
+              <div>
+                <div class="tipos-subtitulo">Avulsos</div>
+                <div id="tpAvulsoLista"></div>
+              </div>
+              <div>
+                <div class="tipos-subtitulo">Parcelados</div>
+                <div id="tpParceladoLista"></div>
+              </div>
+              <div>
+                <div class="tipos-subtitulo">Fixos</div>
+                <div id="tpFixoLista"></div>
+              </div>
+            </div>
+            <div class="hint">Como cada despesa deste mês foi criada: <strong>avulsa</strong> (única), <strong>parcelada</strong> (parte de uma compra em N vezes) ou <strong>fixa</strong> (conta recorrente). Entradas não entram aqui. Clique num item para ir até o dia dele no fluxo de caixa.</div>
+          </div>
+
+          <!-- Insights por categoria -->
+          <div class="insights">
+            <div class="panel">
+              <h2>Maiores receitas (por categoria)</h2>
+              <div id="topReceitas"></div>
+            </div>
+            <div class="panel">
+              <h2>Maiores despesas (por categoria)</h2>
+              <div id="topDespesas"></div>
+            </div>
+          </div>
+
+          <!-- Metas e compromissos por categoria -->
+          <div class="panel">
+            <div class="flex-sp">
+              <h2 style="margin:0">🎯 Metas e compromissos por categoria</h2>
+            </div>
+            <div class="info-ok" id="orcAlerta"></div>
+            <div class="row">
+              <div class="field grow">
+                <label for="orcCategoria">Categoria</label>
+                <input type="text" id="orcCategoria" list="cats" placeholder="Ex.: Investimento, Mercado...">
+              </div>
+              <div class="field">
+                <label for="orcTipo">Tipo</label>
+                <select id="orcTipo">
+                  <option value="saida">Saída (ex.: limite de gasto)</option>
+                  <option value="entrada">Entrada (ex.: meta de investimento/aporte)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="orcLimite">Meta mensal (R$)</label>
+                <input type="number" id="orcLimite" step="0.01" placeholder="0,00">
+              </div>
+              <button class="btn-primary" id="btnSalvarOrc">Salvar meta</button>
+            </div>
+            <div class="hint">Defina uma meta mensal por categoria — de <strong>saída</strong> (ex.: limite de gasto) ou de <strong>entrada</strong> (ex.: "quero investir/aportar até R$ 300 no mês"). Conforme você for lançando na categoria, a barra vai abatendo até cumprir a meta. Clique no <strong>✎</strong> de uma meta para editar.</div>
+            <div id="orcamentosLista" style="margin-top:14px"></div>
+          </div>
+        </div>
+
+        <!-- ===================== EM ESPERA ===================== -->
+        <div class="panel modulo" id="secEspera" hidden>
+          <div class="flex-sp">
+            <h2 style="margin:0">⏳ Em espera — a receber / a pagar</h2>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span id="pendResumo" class="hint" style="margin:0"></span>
+              <button class="btn-ghost btn-sm" id="btnImportExtrato">📥 Importar extrato</button>
+              <input type="file" id="fileExtrato" accept=".csv,.ofx,.txt,text/csv" style="display:none">
+            </div>
+          </div>
+          <div id="pendentesLista"></div>
+          <div class="hint">Itens que ainda não entraram no fluxo. Ao receber/pagar, clique em <strong>Dar baixa</strong>, escolha a data e ele vai para o fluxo de caixa do mês selecionado. Marque <strong>"Em espera"</strong> no formulário acima para adicionar aqui. Marcando também <strong>"Repete todo mês"</strong>, o pendente vira <strong>🔁 mensal</strong> e continua na lista após a baixa, pronto para o próximo mês.</div>
+        </div>
+
+        <!-- ===================== FLUXO DE CAIXA DIÁRIO ===================== -->
+        <div class="panel modulo" id="secFluxo" hidden>
+          <div class="flex-sp">
+            <h2 style="margin:0">Fluxo de caixa dia a dia</h2>
+            <div style="display:flex;gap:8px">
+              <button class="btn-ghost btn-sm" id="btnExport">Exportar backup</button>
+              <button class="btn-danger btn-sm" id="btnLimpar">Limpar mês</button>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:90px">Dia</th>
+                  <th>Lançamentos</th>
+                  <th style="width:110px;text-align:right">Entradas</th>
+                  <th style="width:110px;text-align:right">Saídas</th>
+                  <th style="width:130px;text-align:right">Saldo do dia</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+          <div class="hint">O <strong>Saldo do dia</strong> é acumulado a partir do saldo inicial. Dias em <span style="color:var(--neg-text);font-weight:600">vermelho</span> indicam que o dinheiro não durou até pagar as contas.</div>
+        </div>
+
+      </div><!-- /appArea -->
+
+    </div><!-- /wrap -->
+
+  </div><!-- /main-content -->
+
+</div><!-- /app-shell -->
 
 <!-- Botão flutuante: atalho para o formulário de novo lançamento -->
 <button type="button" class="fab-add" id="fabAdd" title="Novo lançamento">+</button>

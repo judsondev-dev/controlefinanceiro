@@ -18,7 +18,8 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 - **Despesas: avulso, parcelado e fixo**: veja de um lugar só quantas despesas do mês são únicas, parte de uma compra parcelada ou conta fixa (com total de cada); clique num item para ir até o dia dele no fluxo
 - Avisos de erro em **toast** não bloqueante, com **desfazer** ao remover um lançamento ou item em espera, e aviso quando a conexão com a internet cai
 - Confirmações (excluir, limpar mês, importar extrato...) em um **diálogo com o visual do app**, no lugar do pop-up padrão do navegador
-- Navegação por mês, seções recolhíveis (**todas começam fechadas** — clique no título para abrir a que precisar; a escolha fica salva no navegador) e layout **responsivo** (funciona no celular)
+- **Menu lateral com módulos** (Resumo, Lançar, Análises, Em espera, Fluxo diário) — só um módulo fica visível por vez, em vez de rolar uma página só com tudo junto; no celular vira um menu que abre/fecha. Dentro de cada módulo, os painéis continuam recolhíveis se quiser esconder algum
+- Navegação por mês e layout **responsivo** (funciona no celular)
 
 ## Como usar
 
