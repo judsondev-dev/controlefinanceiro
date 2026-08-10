@@ -492,18 +492,56 @@ async function limparMes(){
   finally{ ocupado=false; }
 }
 
+/* ---------- Checkpoint: detecta o que do extrato já está no sistema ---------- */
+
+/** "Impressão digital" de um lançamento, para comparar o que vem do arquivo com o que já existe. */
+function fingerprintItem(tipo, ano, mes, dia, valor, descricao){
+  return [tipo, ano, mes, dia, Number(valor).toFixed(2), String(descricao||"").trim().toLowerCase()].join("|");
+}
+
+/** Conta quantas vezes cada "impressão digital" já aparece em pendentes + lançamentos. */
+function mapaExistentes(){
+  const mapa = {};
+  const soma = (tipo,ano,mes,dia,valor,descricao)=>{
+    if(ano==null || mes==null || !dia) return;
+    const fp = fingerprintItem(tipo,ano,mes,dia,valor,descricao);
+    mapa[fp] = (mapa[fp]||0)+1;
+  };
+  state.pendentes.forEach(p=> soma(p.tipo, p.venc_ano, p.venc_mes, p.venc_dia, p.valor, p.descricao));
+  state.lancamentos.forEach(l=> soma(l.tipo, l.ano, l.mes, l.dia, l.valor, l.descricao));
+  return mapa;
+}
+
 /**
- * Modal para escolher o período (De/Até) a importar de um extrato já lido.
- * Útil quando o arquivo cobre o mês inteiro mas você só quer trazer um
- * dia ou um intervalo por vez. Itens sem data reconhecida no arquivo
- * sempre entram (não têm como ser filtrados por período). Resolve com
- * a lista filtrada a importar, ou null se cancelado.
+ * Marca cada item como "duplicata" (já parece existir em pendentes/lançamentos)
+ * ou não. Usa a mesma impressão digital uma única vez por ocorrência real já
+ * cadastrada, então dois lançamentos iguais no arquivo só são marcados como
+ * duplicata se já existirem duas vezes no sistema.
+ */
+function marcaDuplicatas(itens){
+  const mapa = mapaExistentes();
+  return itens.map(it=>{
+    if(it.ano==null || it.mes==null || !it.dia) return Object.assign({}, it, {duplicata:false});
+    const fp = fingerprintItem(it.tipo, it.ano, it.mes, it.dia, it.valor, it.descricao);
+    if(mapa[fp]>0){ mapa[fp]--; return Object.assign({}, it, {duplicata:true}); }
+    return Object.assign({}, it, {duplicata:false});
+  });
+}
+
+/**
+ * Modal para escolher o período (De/Até) a importar de um extrato já lido,
+ * com um checkpoint mostrando quais lançamentos já parecem estar no sistema
+ * (mesma data, tipo, valor e descrição em algum pendente ou lançamento) —
+ * útil pra saber o que já foi importado antes e não importar de novo.
+ * Itens sem data reconhecida no arquivo sempre entram (não dá pra comparar
+ * nem filtrar por período). Resolve com a lista a importar, ou null se
+ * cancelado.
  */
 function selecionarPeriodoImportacao(itens){
   const isoDe = i => i.ano+"-"+String(i.mes+1).padStart(2,"0")+"-"+String(i.dia).padStart(2,"0");
   const comData = itens.filter(i=> i.dia>=1 && i.dia<=31 && i.mes!=null && i.ano);
   const semData = itens.filter(i=> !(i.dia>=1 && i.dia<=31 && i.mes!=null && i.ano));
-  if(!comData.length) return Promise.resolve(itens); // nada tem data: não há o que filtrar
+  if(!comData.length) return Promise.resolve(itens); // nada tem data: não há o que filtrar nem comparar
 
   const datasIso = comData.map(isoDe);
   const minData = datasIso.reduce((a,b)=> a<b?a:b);
@@ -514,7 +552,7 @@ function selecionarPeriodoImportacao(itens){
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay dlg-overlay";
     overlay.innerHTML =
-      '<div class="modal dlg-modal" style="max-width:460px">'+
+      '<div class="modal dlg-modal" style="max-width:580px">'+
         '<div class="modal-head"><h3>Importar extrato</h3></div>'+
         '<div class="dlg-body">'+
           '<div class="hint" style="margin:0 0 14px">O arquivo tem lançamentos de <strong>'+brDe(minData)+'</strong> a <strong>'+brDe(maxData)+'</strong>. Escolha o período que quer importar agora — o resto do arquivo pode ser importado depois, em outra vez.</div>'+
@@ -522,8 +560,12 @@ function selecionarPeriodoImportacao(itens){
             '<div class="field"><label for="impDe">De</label><input type="date" id="impDe" value="'+minData+'" min="'+minData+'" max="'+maxData+'"></div>'+
             '<div class="field"><label for="impAte">Até</label><input type="date" id="impAte" value="'+maxData+'" min="'+minData+'" max="'+maxData+'"></div>'+
           '</div>'+
-          (semData.length ? '<div class="hint" style="margin-top:10px">+ '+semData.length+' lançamento(s) sem data reconhecida no arquivo — sempre incluídos.</div>' : '')+
+          '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:12px">'+
+            '<input type="checkbox" id="impPularDup" checked style="width:auto"> Pular os que já parecem estar no sistema (checkpoint)'+
+          '</label>'+
+          (semData.length ? '<div class="hint" style="margin-top:10px">+ '+semData.length+' lançamento(s) sem data reconhecida no arquivo — sempre incluídos, sem checkpoint.</div>' : '')+
           '<div class="hint" id="impContagem" style="margin-top:10px;font-weight:700;color:var(--text)"></div>'+
+          '<div id="impLista" class="imp-lista"></div>'+
         '</div>'+
         '<div class="dlg-acoes">'+
           '<button type="button" class="btn-ghost" data-act="cancelar">Cancelar</button>'+
@@ -533,28 +575,42 @@ function selecionarPeriodoImportacao(itens){
     document.body.appendChild(overlay);
     const inDe = overlay.querySelector("#impDe");
     const inAte = overlay.querySelector("#impAte");
+    const inPular = overlay.querySelector("#impPularDup");
     const contagem = overlay.querySelector("#impContagem");
+    const lista = overlay.querySelector("#impLista");
     const filtrar = ()=>{
       let de = inDe.value||minData, ate = inAte.value||maxData;
       if(de>ate){ [de,ate]=[ate,de]; }
-      const dentro = comData.filter(i=>{ const d=isoDe(i); return d>=de && d<=ate; });
-      const todos = dentro.concat(semData);
-      const nIn = todos.filter(i=>i.tipo==="entrada").length;
-      const nOut = todos.length-nIn;
-      contagem.textContent = todos.length+" lançamento(s) serão importados ("+nIn+" entradas, "+nOut+" saídas).";
-      return dentro;
+      const noPeriodo = comData.filter(i=>{ const d=isoDe(i); return d>=de && d<=ate; });
+      const marcados = marcaDuplicatas(noPeriodo).sort((a,b)=>a.dia-b.dia);
+      const pular = inPular.checked;
+      const aImportar = marcados.filter(it=> !(pular && it.duplicata)).concat(semData);
+      const nDup = marcados.filter(it=>it.duplicata).length;
+      const nIn = aImportar.filter(i=>i.tipo==="entrada").length;
+      const nOut = aImportar.length-nIn;
+      contagem.textContent = aImportar.length+" serão importados ("+nIn+" entradas, "+nOut+" saídas)"+
+        (nDup ? " · "+nDup+" já no sistema"+(pular?" (ignorados)":"") : "")+".";
+      lista.innerHTML = marcados.map(it=>
+        '<div class="imp-row'+(it.duplicata?" imp-dup":"")+'">'+
+          '<span class="imp-dia">dia '+String(it.dia).padStart(2,"0")+'</span>'+
+          '<span class="imp-desc">'+escapeHtml(it.descricao||"(sem descrição)")+'</span>'+
+          '<span class="imp-val '+(it.tipo==="entrada"?"in":"out")+'">'+fmt(Number(it.valor))+'</span>'+
+          '<span class="imp-tag">'+(it.duplicata?"✅ já no sistema":"🆕 novo")+'</span>'+
+        '</div>'
+      ).join("") || '<div class="rank-empty">Nenhum lançamento neste período.</div>';
+      return aImportar;
     };
     filtrar();
     inDe.addEventListener("change", filtrar);
     inAte.addEventListener("change", filtrar);
+    inPular.addEventListener("change", filtrar);
     const fechar = (v)=>{ overlay.remove(); document.removeEventListener("keydown", onKey); resolve(v); };
     const onKey = e=>{ if(e.key==="Escape") fechar(null); };
     document.addEventListener("keydown", onKey);
     overlay.addEventListener("click", e=>{ if(e.target===overlay) fechar(null); });
     overlay.querySelector('[data-act="cancelar"]').addEventListener("click", ()=>fechar(null));
     overlay.querySelector('[data-act="ok"]').addEventListener("click", ()=>{
-      const dentro = filtrar();
-      fechar(dentro.concat(semData));
+      fechar(filtrar());
     });
   });
 }

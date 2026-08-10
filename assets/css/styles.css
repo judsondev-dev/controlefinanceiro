@@ -288,6 +288,17 @@ tr.flash td{animation:flashRow 1.1s ease}
 .dlg-acoes{display:flex;justify-content:flex-end;gap:10px;padding:0 18px 18px}
 .dlg-acoes-col{flex-direction:column;align-items:stretch}
 .dlg-acoes-col button{width:100%;text-align:center;padding:11px 16px}
+
+/* Lista de checkpoint (importação de extrato) */
+.imp-lista{max-height:260px;overflow-y:auto;margin-top:12px;border:1px solid var(--border);border-radius:10px}
+.imp-row{display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:12.5px;border-bottom:1px solid var(--border)}
+.imp-row:last-child{border-bottom:none}
+.imp-row.imp-dup{opacity:.55}
+.imp-dia{color:var(--muted);flex-shrink:0;width:44px}
+.imp-desc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-val{font-variant-numeric:tabular-nums;flex-shrink:0}
+.imp-val.in{color:var(--in)} .imp-val.out{color:var(--out)}
+.imp-tag{flex-shrink:0;font-size:11px;color:var(--muted);white-space:nowrap;width:98px;text-align:right}
 @keyframes dlgFade{from{opacity:0}to{opacity:1}}
 @keyframes dlgPop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 
