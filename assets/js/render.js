@@ -66,6 +66,7 @@ function render(){
         const recTag = it.rec?'<span class="tag rec">fixo</span>':"";
         const ovTag = it.ov?'<span class="tag ov">editado</span>':"";
         const pulTag = it.pulado?'<span class="tag pul">pulado</span>':"";
+        const impTag = (!it.rec && it.origem==="importado")?'<span class="tag imp">📥 importado</span>':"";
         let acoes;
         if(it.pulado){
           acoes = '<span class="restore-x" title="Restaurar (incluir de novo neste mês)" data-rid="'+it.id+'">↺</span>';
@@ -77,7 +78,7 @@ function render(){
             '<span class="del-x" title="Remover" data-id="'+it.id+'" data-rec="'+it.rec+'" data-grupo="'+(it.grupo||"")+'">✕</span>';
         }
         li.innerHTML =
-          '<span class="li-desc">'+escapeHtml(it.descricao||"(sem descrição)")+catHtml+recTag+ovTag+pulTag+'</span>'+
+          '<span class="li-desc">'+escapeHtml(it.descricao||"(sem descrição)")+catHtml+recTag+ovTag+pulTag+impTag+'</span>'+
           '<span style="display:flex;align-items:center;gap:6px">'+
             '<span class="amt '+(it.tipo==="entrada"?"in":"out")+'">'+sign+" "+fmt(Number(it.valor))+'</span>'+
             acoes+
@@ -355,6 +356,7 @@ function renderPendentes(){
     const cat = p.categoria ? ' <span class="cat">('+escapeHtml(p.categoria)+')</span>' : "";
     const badge = p.tipo==="entrada" ? '<span class="pill in">a receber</span>' : '<span class="pill out">a pagar</span>';
     const mensal = p.recorrente ? '<span class="tag rec">🔁 mensal</span>' : "";
+    const impTag = p.origem==="importado" ? '<span class="tag imp">📥 importado</span>' : "";
     const okTag = baixado ? '<span class="tag ok">✓ baixado em '+MESES[state.mes]+'</span>' : "";
     let acoes;
     if(baixado){
@@ -366,7 +368,7 @@ function renderPendentes(){
         '<span class="del-x pend-del" title="Remover" data-pid="'+p.id+'">✕</span>';
     }
     html += '<li class="'+(baixado?"pend-done":"")+'">'+
-      '<span class="pend-info">'+badge+' <span class="pend-desc">'+escapeHtml(p.descricao||"(sem descrição)")+'</span>'+cat+mensal+okTag+' '+venc+'</span>'+
+      '<span class="pend-info">'+badge+' <span class="pend-desc">'+escapeHtml(p.descricao||"(sem descrição)")+'</span>'+cat+mensal+impTag+okTag+' '+venc+'</span>'+
       '<span class="pend-acoes">'+
         '<span class="pend-val '+(p.tipo==="entrada"?"in":"out")+'">'+fmt(Number(p.valor))+'</span>'+
         acoes+

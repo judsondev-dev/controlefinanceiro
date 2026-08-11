@@ -27,8 +27,10 @@ create table if not exists public.lancamentos (
   descricao  text,
   categoria  text,
   valor      numeric(14,2) not null check (valor > 0),
+  origem     text not null default 'manual' check (origem in ('manual','importado')),
   created_at timestamptz not null default now()
 );
+alter table public.lancamentos add column if not exists origem text not null default 'manual' check (origem in ('manual','importado'));
 
 -- --------------------------------------------------------------------
 -- Contas fixas (recorrentes) — repetem todo mês
@@ -77,8 +79,10 @@ create table if not exists public.pendentes (
   baixa_mes  integer,
   venc_ano   integer,
   venc_mes   integer,
+  origem     text not null default 'manual' check (origem in ('manual','importado')),
   created_at timestamptz not null default now()
 );
+alter table public.pendentes add column if not exists origem text not null default 'manual' check (origem in ('manual','importado'));
 
 -- --------------------------------------------------------------------
 -- Metas e compromissos por categoria (valor mensal a cumprir) — usado

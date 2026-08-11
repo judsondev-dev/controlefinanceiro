@@ -9,6 +9,7 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 - Fluxo de caixa dia a dia com saldo acumulado e alerta de saldo negativo
 - Entradas e saídas, com categorias
 - Contas **fixas** (repetem todo mês), com opção de editar/pular/antecipar em um mês específico
+- Cada lançamento guarda a **origem** (manual ou importado do extrato), com uma tag "📥 importado" na tabela e na lista de "em espera" — a origem é herdada ao dar baixa, converter ou desfazer, então continua rastreável depois de virar lançamento
 - Compras **parceladas** (lançadas automaticamente nos meses seguintes)
 - **Em espera** (a receber / a pagar): itens fora do fluxo até você dar baixa; suporta itens **mensais**
 - **Importação de extrato** em CSV e OFX, com escolha do período (De/Até) a importar e um **checkpoint** que compara com o que já está no sistema (mesma data, tipo, valor e descrição) — mostra o que é novo e o que já foi importado antes, com opção de pular os repetidos automaticamente; os itens entram como "em espera" para você classificar e lançar

@@ -182,7 +182,7 @@ function abrirCategoria(cat, tipo){
       total+=Number(it.valor);
       html += '<div class="cat-row">'+
         '<span class="cd">dia '+String(it.dia).padStart(2,"0")+'</span>'+
-        '<span class="cn">'+escapeHtml(it.descricao||"(sem descrição)")+(it.rec?' <span class="tag rec">fixo</span>':'')+'</span>'+
+        '<span class="cn">'+escapeHtml(it.descricao||"(sem descrição)")+(it.rec?' <span class="tag rec">fixo</span>':'')+(!it.rec&&it.origem==="importado"?' <span class="tag imp">📥 importado</span>':'')+'</span>'+
         '<span class="cv '+cls+'">'+fmt(Number(it.valor))+'</span>'+
         '<span class="cat-acoes">'+
           '<span class="ico cat-edit" title="Editar" data-id="'+it.id+'" data-rec="'+it.rec+'">✎</span>'+

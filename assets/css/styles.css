@@ -181,6 +181,7 @@ td.saldo{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .tag.ov{background:rgba(255,176,32,.18);color:#b45309}
 .tag.pul{background:rgba(255,176,32,.18);color:#b45309}
 .tag.ok{background:var(--in-soft);color:var(--in)}
+.tag.imp{background:rgba(124,58,237,.14);color:#7c3aed}
 .pill{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;border-radius:20px;padding:2px 9px}
 .pill.in{background:var(--in-soft);color:var(--in)}
 .pill.out{background:var(--out-soft);color:var(--out)}

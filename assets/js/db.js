@@ -40,7 +40,8 @@ async function carregar(){
     (s.data||[]).forEach(x=> state.saldos[chave(x.ano,x.mes)] = Number(x.valor));
     state.lancamentos = (l.data||[]).map(x=>({
       id:x.id, grupo:x.grupo, ano:x.ano, mes:x.mes, dia:x.dia,
-      tipo:x.tipo, descricao:x.descricao, categoria:x.categoria, valor:Number(x.valor)
+      tipo:x.tipo, descricao:x.descricao, categoria:x.categoria, valor:Number(x.valor),
+      origem:x.origem||"manual"
     }));
     state.recorrentes = (r.data||[]).map(x=>({
       id:x.id, dia:x.dia, tipo:x.tipo, descricao:x.descricao, categoria:x.categoria, valor:Number(x.valor)
@@ -57,7 +58,7 @@ async function carregar(){
       id:x.id, tipo:x.tipo, descricao:x.descricao, categoria:x.categoria,
       valor:Number(x.valor), venc_dia:x.venc_dia, recorrente: !!x.recorrente,
       baixa_ano: x.baixa_ano, baixa_mes: x.baixa_mes,
-      venc_ano: x.venc_ano, venc_mes: x.venc_mes
+      venc_ano: x.venc_ano, venc_mes: x.venc_mes, origem:x.origem||"manual"
     }));
     state.orcamentos = (b.data||[]).map(x=>({id:x.id, categoria:x.categoria, tipo:x.tipo||"saida", limite:Number(x.limite)}));
     render();

@@ -40,9 +40,9 @@ async function addLancamento(){
   // Se "Repete todo mês" também estiver marcado, o pendente é mensal (volta após a baixa).
   if(emEspera){
     try{
-      const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:rec};
+      const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:rec, origem:"manual"};
       const {data,error}=await db.from("pendentes").insert(row).select(); if(error) throw error;
-      state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente})));
+      state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual"})));
       document.getElementById("descricao").value="";
       document.getElementById("valor").value="";
       document.getElementById("emEspera").checked=false;
@@ -65,16 +65,16 @@ async function addLancamento(){
         const alvo=new Date(state.ano, state.mes+i, 1);
         const ano=alvo.getFullYear(), mes=alvo.getMonth();
         const diaAlvo=Math.min(dia, diasNoMes(ano,mes));
-        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor});
+        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem:"manual"});
       }
       const {data,error}=await db.from("lancamentos").insert(rows).select();
       if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
+      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
     }else{
-      const row={ano:state.ano,mes:state.mes,dia,tipo,descricao,categoria,valor};
+      const row={ano:state.ano,mes:state.mes,dia,tipo,descricao,categoria,valor,origem:"manual"};
       const {data,error}=await db.from("lancamentos").insert(row).select();
       if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
+      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
     }
     document.getElementById("descricao").value="";
     document.getElementById("valor").value="";
@@ -133,9 +133,9 @@ async function salvarEdicao(){
       // Conversão de lançamento avulso -> em espera ou conta fixa
       if(!grupo && (querEspera || querRec)){
         if(querEspera){
-          const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:querRec};
+          const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:querRec, origem:(it&&it.origem)||"manual"};
           const {data,error}=await db.from("pendentes").insert(row).select(); if(error) throw error;
-          state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente})));
+          state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual"})));
         }else{
           const row={dia,tipo,descricao,categoria,valor};
           const {data,error}=await db.from("recorrentes").insert(row).select(); if(error) throw error;
@@ -231,9 +231,9 @@ async function removerItem(id, rec, grupo){
       if(item){
         toastAcao("Lançamento removido.", "Desfazer", async ()=>{
           try{
-            const row={ano:item.ano, mes:item.mes, dia:item.dia, tipo:item.tipo, descricao:item.descricao, categoria:item.categoria, valor:item.valor};
+            const row={ano:item.ano, mes:item.mes, dia:item.dia, tipo:item.tipo, descricao:item.descricao, categoria:item.categoria, valor:item.valor, origem:item.origem||"manual"};
             const {data,error:e2}=await db.from("lancamentos").insert(row).select(); if(e2) throw e2;
-            state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
+            state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
             render();
           }catch(e){ toast("Erro ao desfazer: "+(e.message||e), "erro"); }
         });
@@ -302,6 +302,7 @@ async function confirmarBaixa(){
   if(isNaN(valor)||valor<=0){ toast("Informe um valor maior que zero.", "erro"); return; }
   const {id} = baixando;
   const pend = state.pendentes.find(x=>x.id===id);
+  const origem = (pend && pend.origem) || "manual";
   try{
     let data;
     if(parcelas>1){
@@ -311,16 +312,16 @@ async function confirmarBaixa(){
         const alvo=new Date(state.ano, state.mes+i, 1);
         const ano=alvo.getFullYear(), mes=alvo.getMonth();
         const diaAlvo=Math.min(dia, diasNoMes(ano,mes));
-        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor});
+        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem});
       }
       const r=await db.from("lancamentos").insert(rows).select(); if(r.error) throw r.error;
       data=r.data;
     }else{
-      const row={ano:state.ano, mes:state.mes, dia, tipo, descricao, categoria, valor};
+      const row={ano:state.ano, mes:state.mes, dia, tipo, descricao, categoria, valor, origem};
       const r=await db.from("lancamentos").insert(row).select(); if(r.error) throw r.error;
       data=r.data;
     }
-    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
+    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
     // Pendente mensal permanece, mas marcado como baixado neste mês (some do mês atual,
     // reaparece no próximo). Avulso é removido de vez.
     if(pend && pend.recorrente){
@@ -345,9 +346,9 @@ async function baixaDireta(id){
   const mes = (p.venc_mes!=null)?p.venc_mes:state.mes;
   const dia = (p.venc_dia>=1&&p.venc_dia<=31)?p.venc_dia:1;
   try{
-    const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor};
+    const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual"};
     const {data,error}=await db.from("lancamentos").insert(row).select(); if(error) throw error;
-    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
+    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
     if(p.recorrente){
       const {error:e2}=await db.from("pendentes").update({baixa_ano:ano, baixa_mes:mes}).eq("id",id); if(e2) throw e2;
       p.baixa_ano=ano; p.baixa_mes=mes;
@@ -382,6 +383,7 @@ async function salvarEdicaoPendente(){
     const pend = state.pendentes.find(x=>x.id===id);
     const anoBase = (pend && pend.venc_ano!=null) ? pend.venc_ano : state.ano;
     const mesBase = (pend && pend.venc_mes!=null) ? pend.venc_mes : state.mes;
+    const origem = (pend && pend.origem) || "manual";
     try{
       const grupo = (crypto.randomUUID? crypto.randomUUID() : String(Date.now()));
       const rows=[];
@@ -389,10 +391,10 @@ async function salvarEdicaoPendente(){
         const alvo=new Date(anoBase, mesBase+i, 1);
         const ano=alvo.getFullYear(), mes=alvo.getMonth();
         const diaAlvo=Math.min(diaRaw, diasNoMes(ano,mes));
-        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor});
+        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem});
       }
       const {data,error}=await db.from("lancamentos").insert(rows).select(); if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
+      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
       const {error:eDel}=await db.from("pendentes").delete().eq("id",id); if(eDel) throw eDel;
       state.pendentes=state.pendentes.filter(x=>x.id!==id);
       finalizarEdicao();
@@ -444,9 +446,9 @@ async function removerPendente(id){
     if(item){
       toastAcao("Item em espera removido.", "Desfazer", async ()=>{
         try{
-          const row={tipo:item.tipo, descricao:item.descricao, categoria:item.categoria, valor:item.valor, venc_dia:item.venc_dia, recorrente:item.recorrente};
+          const row={tipo:item.tipo, descricao:item.descricao, categoria:item.categoria, valor:item.valor, venc_dia:item.venc_dia, recorrente:item.recorrente, origem:item.origem||"manual"};
           const {data,error:e2}=await db.from("pendentes").insert(row).select(); if(e2) throw e2;
-          state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente})));
+          state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual"})));
           render();
         }catch(e){ toast("Erro ao desfazer: "+(e.message||e), "erro"); }
       });
@@ -632,10 +634,10 @@ async function importarExtrato(file){
     const rows=selecionados.map(i=>({
       tipo:i.tipo, descricao:i.descricao, categoria:"", valor:i.valor,
       venc_dia:(i.dia>=1&&i.dia<=31)?i.dia:null, recorrente:false,
-      venc_ano:i.ano||null, venc_mes:(i.mes!=null?i.mes:null)
+      venc_ano:i.ano||null, venc_mes:(i.mes!=null?i.mes:null), origem:"importado"
     }));
     const {data,error}=await db.from("pendentes").insert(rows).select(); if(error) throw error;
-    state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,baixa_ano:x.baixa_ano,baixa_mes:x.baixa_mes,venc_ano:x.venc_ano,venc_mes:x.venc_mes})));
+    state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,baixa_ano:x.baixa_ano,baixa_mes:x.baixa_mes,venc_ano:x.venc_ano,venc_mes:x.venc_mes,origem:x.origem||"importado"})));
     render();
     toast(selecionados.length+" lançamentos importados para \"Em espera\".");
   }catch(e){ toast("Erro ao importar: "+(e.message||e), "erro"); carregar(); }
