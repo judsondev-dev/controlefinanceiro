@@ -1,17 +1,32 @@
 /* =====================================================================
    Projeção — simula os próximos meses a partir do mês selecionado,
-   usando apenas o que já está lançado (contas fixas + parcelas futuras
-   já criadas). Não inclui "em espera" nem lançamentos avulsos que ainda
-   não existem, por não serem previsíveis.
+   usando o que já está lançado (contas fixas + parcelas futuras já
+   criadas) mais os itens "em espera" marcados como mensais (🔁), já
+   que esses representam uma expectativa recorrente (ex.: um cliente
+   fixo que sempre paga, mas que você confirma o recebimento na mão).
+   Pendentes avulsos (não recorrentes) ficam de fora, por não serem
+   previsíveis. Um pendente mensal já baixado no mês simulado não
+   entra de novo (o lançamento real dele já está contado).
    ===================================================================== */
 "use strict";
 
 const PROJ_KEY = "cf_proj_meses";
 
+/** Pendentes mensais (🔁) como previsão para um mês — só entra na projeção. */
+function pendentesRecorrentesDoMes(ano, mes){
+  const nDias = diasNoMes(ano, mes);
+  return state.pendentes
+    .filter(p => p.recorrente && !(p.baixa_ano===ano && p.baixa_mes===mes))
+    .map(p => ({
+      dia: (p.venc_dia>=1 && p.venc_dia<=31) ? Math.min(p.venc_dia, nDias) : 1,
+      tipo: p.tipo, valor: p.valor, pulado: false
+    }));
+}
+
 /** Simula um mês inteiro dia a dia a partir de um saldo inicial dado. */
 function simulaMes(ano, mes, saldoInicial){
   const nDias = diasNoMes(ano, mes);
-  const itens = lancamentosDoMes(ano, mes);
+  const itens = lancamentosDoMes(ano, mes).concat(pendentesRecorrentesDoMes(ano, mes));
   const porDia = {};
   itens.forEach(it=>{
     if(it.pulado) return;
