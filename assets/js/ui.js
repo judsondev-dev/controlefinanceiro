@@ -56,6 +56,8 @@ function iniciarEdicao(id, rec){
   document.getElementById("recorrente").disabled = !plano;      // avulso pode virar fixo
   document.getElementById("emEspera").checked = false;
   document.getElementById("emEspera").disabled = !plano;        // avulso pode virar "em espera"
+  document.getElementById("marcarImportado").checked = item.origem==="importado";
+  document.getElementById("marcarImportado").disabled = rec;    // conta fixa não tem origem
   const p = document.getElementById("parcelas");
   p.value = "1"; p.disabled = true;
   document.getElementById("btnAdd").textContent = "Salvar edição";
@@ -73,6 +75,8 @@ function finalizarEdicao(){
   document.getElementById("recorrente").checked = false;
   document.getElementById("emEspera").disabled = false;
   document.getElementById("emEspera").checked = false;
+  document.getElementById("marcarImportado").disabled = false;
+  document.getElementById("marcarImportado").checked = false;
   const p = document.getElementById("parcelas");
   p.disabled = false; p.value = "1";
   document.getElementById("btnAdd").textContent = "+ Adicionar";
@@ -133,6 +137,8 @@ function iniciarBaixa(id){
   document.getElementById("recorrente").disabled = true;
   document.getElementById("emEspera").checked = false;
   document.getElementById("emEspera").disabled = true;
+  document.getElementById("marcarImportado").checked = p.origem==="importado";
+  document.getElementById("marcarImportado").disabled = false;
   const pr = document.getElementById("parcelas"); pr.value="1"; pr.disabled=false; // permite parcelar ao dar baixa
   document.getElementById("btnAdd").textContent = "Confirmar baixa → "+MESES[state.mes]+"/"+state.ano;
   document.getElementById("btnCancelarEd").style.display = "inline-block";
@@ -155,6 +161,8 @@ function iniciarEdicaoPendente(id){
   document.getElementById("recorrente").disabled = false; // pode alternar "mensal"
   document.getElementById("emEspera").checked = true;
   document.getElementById("emEspera").disabled = true;
+  document.getElementById("marcarImportado").checked = p.origem==="importado";
+  document.getElementById("marcarImportado").disabled = false;
   const pr = document.getElementById("parcelas"); pr.value="1"; pr.disabled=false; // >1 lança parcelado direto no fluxo
   document.getElementById("btnAdd").textContent = "Salvar em espera";
   document.getElementById("btnCancelarEd").style.display = "inline-block";

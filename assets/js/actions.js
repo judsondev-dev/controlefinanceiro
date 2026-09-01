@@ -30,6 +30,7 @@ async function addLancamento(){
   const valor=parseFloat(document.getElementById("valor").value);
   const rec=document.getElementById("recorrente").checked;
   const emEspera=document.getElementById("emEspera").checked;
+  const origem=document.getElementById("marcarImportado").checked?"importado":"manual";
   let parcelas=parseInt(document.getElementById("parcelas").value,10);
   if(isNaN(parcelas)||parcelas<1) parcelas=1;
 
@@ -40,13 +41,14 @@ async function addLancamento(){
   // Se "Repete todo mês" também estiver marcado, o pendente é mensal (volta após a baixa).
   if(emEspera){
     try{
-      const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:rec, origem:"manual"};
+      const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:rec, origem};
       const {data,error}=await db.from("pendentes").insert(row).select(); if(error) throw error;
       state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual"})));
       document.getElementById("descricao").value="";
       document.getElementById("valor").value="";
       document.getElementById("emEspera").checked=false;
       document.getElementById("recorrente").checked=false;
+      document.getElementById("marcarImportado").checked=false;
       render();
     }catch(e){ toast("Erro ao guardar em espera: "+(e.message||e), "erro"); }
     return;
@@ -65,13 +67,13 @@ async function addLancamento(){
         const alvo=new Date(state.ano, state.mes+i, 1);
         const ano=alvo.getFullYear(), mes=alvo.getMonth();
         const diaAlvo=Math.min(dia, diasNoMes(ano,mes));
-        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem:"manual"});
+        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem});
       }
       const {data,error}=await db.from("lancamentos").insert(rows).select();
       if(error) throw error;
       state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
     }else{
-      const row={ano:state.ano,mes:state.mes,dia,tipo,descricao,categoria,valor,origem:"manual"};
+      const row={ano:state.ano,mes:state.mes,dia,tipo,descricao,categoria,valor,origem};
       const {data,error}=await db.from("lancamentos").insert(row).select();
       if(error) throw error;
       state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
@@ -80,6 +82,7 @@ async function addLancamento(){
     document.getElementById("valor").value="";
     document.getElementById("parcelas").value="1";
     document.getElementById("recorrente").checked=false;
+    document.getElementById("marcarImportado").checked=false;
     render();
   }catch(e){ toast("Erro ao salvar: "+(e.message||e), "erro"); }
   } finally { ocupado=false; }
@@ -100,6 +103,7 @@ async function salvarEdicao(){
   const recEl=document.getElementById("recorrente");
   const querEspera = emEsperaEl.checked && !emEsperaEl.disabled;
   const querRec = recEl.checked && !recEl.disabled;
+  const origem = document.getElementById("marcarImportado").checked?"importado":"manual";
   if(isNaN(valor)||valor<=0){ toast("Informe um valor maior que zero.", "erro"); return; }
   if(!querEspera && (!dia||dia<1||dia>31)){ toast("Informe um dia válido (1 a 31).", "erro"); return; }
   const {id, rec} = editando;
@@ -133,7 +137,7 @@ async function salvarEdicao(){
       // Conversão de lançamento avulso -> em espera ou conta fixa
       if(!grupo && (querEspera || querRec)){
         if(querEspera){
-          const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:querRec, origem:(it&&it.origem)||"manual"};
+          const row={tipo, descricao, categoria, valor, venc_dia:(dia>=1&&dia<=31)?dia:null, recorrente:querRec, origem};
           const {data,error}=await db.from("pendentes").insert(row).select(); if(error) throw error;
           state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual"})));
         }else{
@@ -162,12 +166,12 @@ async function salvarEdicao(){
         for(let i=0;i<total;i++){
           const p = ordenadas[i];
           const diaP = Math.min(dia, diasNoMes(p.ano, p.mes));
-          const patch={dia:diaP, tipo, categoria, valor, descricao:(base||"(sem descrição)")+" ("+(i+1)+"/"+total+")"};
+          const patch={dia:diaP, tipo, categoria, valor, descricao:(base||"(sem descrição)")+" ("+(i+1)+"/"+total+")", origem};
           const {error}=await db.from("lancamentos").update(patch).eq("id",p.id); if(error) throw error;
           Object.assign(p, patch);
         }
       }else{
-        const patch={dia,tipo,descricao,categoria,valor};
+        const patch={dia,tipo,descricao,categoria,valor,origem};
         const {error}=await db.from("lancamentos").update(patch).eq("id",id); if(error) throw error;
         if(it) Object.assign(it, patch);
       }
@@ -302,7 +306,7 @@ async function confirmarBaixa(){
   if(isNaN(valor)||valor<=0){ toast("Informe um valor maior que zero.", "erro"); return; }
   const {id} = baixando;
   const pend = state.pendentes.find(x=>x.id===id);
-  const origem = (pend && pend.origem) || "manual";
+  const origem = document.getElementById("marcarImportado").checked?"importado":"manual";
   try{
     let data;
     if(parcelas>1){
@@ -373,6 +377,7 @@ async function salvarEdicaoPendente(){
   const categoria=document.getElementById("categoria").value.trim();
   const valor=parseFloat(document.getElementById("valor").value);
   const recorrente=document.getElementById("recorrente").checked;
+  const origem = document.getElementById("marcarImportado").checked?"importado":"manual";
   let parcelas=parseInt(document.getElementById("parcelas").value,10);
   if(isNaN(parcelas)||parcelas<1) parcelas=1;
   if(isNaN(valor)||valor<=0){ toast("Informe um valor maior que zero.", "erro"); return; }
@@ -383,7 +388,6 @@ async function salvarEdicaoPendente(){
     const pend = state.pendentes.find(x=>x.id===id);
     const anoBase = (pend && pend.venc_ano!=null) ? pend.venc_ano : state.ano;
     const mesBase = (pend && pend.venc_mes!=null) ? pend.venc_mes : state.mes;
-    const origem = (pend && pend.origem) || "manual";
     try{
       const grupo = (crypto.randomUUID? crypto.randomUUID() : String(Date.now()));
       const rows=[];
@@ -406,7 +410,7 @@ async function salvarEdicaoPendente(){
 
   const venc_dia = (diaRaw>=1 && diaRaw<=31) ? diaRaw : null;
   try{
-    const patch={tipo, descricao, categoria, valor, venc_dia, recorrente};
+    const patch={tipo, descricao, categoria, valor, venc_dia, recorrente, origem};
     const {error}=await db.from("pendentes").update(patch).eq("id",id); if(error) throw error;
     const it=state.pendentes.find(x=>x.id===id); if(it) Object.assign(it, patch);
     finalizarEdicao();
