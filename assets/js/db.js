@@ -90,3 +90,25 @@ function lancamentosDoMes(ano, mes){
   });
   return fixos.concat(recs);
 }
+
+/**
+ * Saldo realmente disponível hoje no mês selecionado: soma só os
+ * lançamentos com dia já chegado (hoje ou antes). Contas com vencimento
+ * futuro continuam aparecendo no fluxo/projeção normalmente — só não
+ * abatem esse número antes da data delas chegar.
+ * Mês totalmente no passado: conta o mês inteiro (tudo já aconteceu).
+ * Mês totalmente no futuro: só o saldo inicial (nada aconteceu ainda).
+ */
+function saldoDisponivelAtual(){
+  const hoje = new Date();
+  const ehMesAtual = hoje.getFullYear()===state.ano && hoje.getMonth()===state.mes;
+  const ehMesFuturo = (state.ano>hoje.getFullYear()) || (state.ano===hoje.getFullYear() && state.mes>hoje.getMonth());
+  if(ehMesFuturo) return saldoInicialAtual();
+  const limiteDia = ehMesAtual ? hoje.getDate() : diasNoMes(state.ano, state.mes);
+  let saldo = saldoInicialAtual();
+  lancamentosDoMes().forEach(it=>{
+    if(it.pulado || it.dia>limiteDia) return;
+    saldo += (it.tipo==="entrada"?1:-1)*Number(it.valor);
+  });
+  return saldo;
+}

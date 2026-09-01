@@ -121,16 +121,19 @@ function render(){
   }
 
   const saldoFinal = saldo;
+  const disponivel = saldoDisponivelAtual();
   // Barra fixa
   document.getElementById("tbPeriodo").textContent = MESES[state.mes]+" / "+state.ano;
+  const tbDi=document.getElementById("tbDisponivel"); tbDi.textContent=fmt(disponivel); tbDi.className="tb-val "+(disponivel<0?"neg":"pos");
   const tbMe=document.getElementById("tbMenor"); tbMe.textContent=fmt(menorSaldo); tbMe.className="tb-val "+(menorSaldo<0?"neg":"pos");
   const tbFi=document.getElementById("tbFinal"); tbFi.textContent=fmt(saldoFinal); tbFi.className="tb-val "+(saldoFinal<0?"neg":"pos");
   const cards=document.getElementById("cards"); cards.innerHTML="";
   cards.appendChild(cardEl("Saldo inicial", fmt(saldoInicialAtual()), ""));
+  cards.appendChild(cardEl("💰 Saldo disponível hoje", fmt(disponivel), disponivel<0?"neg":"pos"));
   cards.appendChild(cardEl("Total entradas", fmt(totalIn), "pos"));
   cards.appendChild(cardEl("Total saídas", fmt(totalOut), "neg"));
-  cards.appendChild(cardEl("Menor saldo do mês", fmt(menorSaldo), menorSaldo<0?"neg":"pos"));
-  cards.appendChild(cardEl("Saldo final", fmt(saldoFinal), saldoFinal<0?"neg":"pos"));
+  cards.appendChild(cardEl("Menor saldo do mês (projetado)", fmt(menorSaldo), menorSaldo<0?"neg":"pos"));
+  cards.appendChild(cardEl("Saldo final (projetado)", fmt(saldoFinal), saldoFinal<0?"neg":"pos"));
 
   const alerta=document.getElementById("alerta");
   if(diasNegativos.length){

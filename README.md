@@ -7,6 +7,7 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 ## Funcionalidades
 
 - Fluxo de caixa dia a dia com saldo acumulado e alerta de saldo negativo
+- **💰 Saldo disponível hoje**: um número separado do saldo projetado — só desconta contas com vencimento até hoje; contas futuras continuam aparecendo no fluxo e nas projeções, mas não pesam nesse número antes da data chegar
 - Entradas e saídas, com categorias
 - Contas **fixas** (repetem todo mês), com opção de editar/pular/antecipar em um mês específico
 - Cada lançamento guarda a **origem** (manual ou importado do extrato), com uma tag "📥 importado" na tabela e na lista de "em espera" — a origem é herdada ao dar baixa, converter ou desfazer, então continua rastreável depois de virar lançamento
