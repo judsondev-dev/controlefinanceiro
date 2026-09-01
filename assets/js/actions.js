@@ -70,12 +70,12 @@ async function addLancamento(){
       }
       const {data,error}=await db.from("lancamentos").insert(rows).select();
       if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
+      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
     }else{
       const row={ano:state.ano,mes:state.mes,dia,tipo,descricao,categoria,valor,origem};
       const {data,error}=await db.from("lancamentos").insert(row).select();
       if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
+      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
     }
     document.getElementById("descricao").value="";
     document.getElementById("valor").value="";
@@ -236,7 +236,7 @@ async function removerItem(id, rec, grupo){
           try{
             const row={ano:item.ano, mes:item.mes, dia:item.dia, tipo:item.tipo, descricao:item.descricao, categoria:item.categoria, valor:item.valor, origem:item.origem||"manual"};
             const {data,error:e2}=await db.from("lancamentos").insert(row).select(); if(e2) throw e2;
-            state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
+            state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
             render();
           }catch(e){ toast("Erro ao desfazer: "+(e.message||e), "erro"); }
         });
@@ -286,6 +286,32 @@ async function restaurarRecorrente(id){
   finally{ ocupado=false; }
 }
 
+/**
+ * Confirma a conta fixa do mês selecionado numa data escolhida pelo
+ * usuário (quadro "A receber / A pagar") — cria o lançamento de verdade
+ * (marcado com origem_recorrente_id, pra não confirmar duas vezes).
+ * Antes disso ela não entra no fluxo nem abate o saldo.
+ */
+async function confirmarRecorrente(id, isoData){
+  if(!db) return;
+  const r = state.recorrentes.find(x=>x.id===id);
+  if(!r) return;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoData||"");
+  if(!m){ toast("Informe uma data válida.", "erro"); return; }
+  const ano=parseInt(m[1],10), mes=parseInt(m[2],10)-1, dia=parseInt(m[3],10);
+  if(ocupado) return; ocupado=true;
+  try{
+    const ov = state.overrides[ovKey(id, state.ano, state.mes)];
+    const eff = ov || r;
+    const row={ano, mes, dia, tipo:eff.tipo, descricao:eff.descricao, categoria:eff.categoria, valor:eff.valor, origem:"manual", origem_recorrente_id:id};
+    const {data,error}=await db.from("lancamentos").insert(row).select(); if(error) throw error;
+    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
+    render();
+    toast("Confirmado em "+String(dia).padStart(2,"0")+"/"+String(mes+1).padStart(2,"0")+"/"+ano+".");
+  }catch(e){ toast("Erro ao confirmar: "+(e.message||e), "erro"); }
+  finally{ ocupado=false; }
+}
+
 /* ---------- Pendentes (em espera) ---------- */
 
 /** Lança um pendente direto no fluxo, na data original, sem abrir o formulário. */
@@ -300,7 +326,7 @@ async function baixaDireta(id){
   try{
     const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual"};
     const {data,error}=await db.from("lancamentos").insert(row).select(); if(error) throw error;
-    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
+    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
     if(p.recorrente){
       const {error:e2}=await db.from("pendentes").update({baixa_ano:ano, baixa_mes:mes}).eq("id",id); if(e2) throw e2;
       p.baixa_ano=ano; p.baixa_mes=mes;
@@ -330,7 +356,7 @@ async function baixaComData(id, isoData){
   try{
     const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual"};
     const {data,error}=await db.from("lancamentos").insert(row).select(); if(error) throw error;
-    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
+    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
     if(p.recorrente){
       const {error:e2}=await db.from("pendentes").update({baixa_ano:ano, baixa_mes:mes}).eq("id",id); if(e2) throw e2;
       p.baixa_ano=ano; p.baixa_mes=mes;
@@ -377,7 +403,7 @@ async function salvarEdicaoPendente(){
         rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem});
       }
       const {data,error}=await db.from("lancamentos").insert(rows).select(); if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
+      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
       const {error:eDel}=await db.from("pendentes").delete().eq("id",id); if(eDel) throw eDel;
       state.pendentes=state.pendentes.filter(x=>x.id!==id);
       finalizarEdicao();

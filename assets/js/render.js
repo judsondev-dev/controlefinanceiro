@@ -63,7 +63,7 @@ function render(){
         if(it.pulado) li.className="pulado";
         const sign = it.tipo==="entrada"?"+":"−";
         const catHtml = it.categoria?' <span class="cat">('+escapeHtml(it.categoria)+')</span>':"";
-        const recTag = it.rec?'<span class="tag rec">fixo</span>':"";
+        const recTag = (it.rec || it.origem_recorrente_id)?'<span class="tag rec">fixo</span>':"";
         const ovTag = it.ov?'<span class="tag ov">editado</span>':"";
         const pulTag = it.pulado?'<span class="tag pul">pulado</span>':"";
         const impTag = (!it.rec && it.origem==="importado")?'<span class="tag imp">📥 importado</span>':"";
@@ -306,9 +306,9 @@ function renderTiposLista(elId, itens){
 /** Separa as despesas do mês em avulso / parcelado / fixo e desenha os três blocos (entradas não entram). */
 function renderTipos(itens){
   const validos = itens.filter(it=>!it.pulado && it.tipo==="saida");
-  const fixos = validos.filter(it=>it.rec);
-  const parcelados = validos.filter(it=>!it.rec && it.grupo);
-  const avulsos = validos.filter(it=>!it.rec && !it.grupo);
+  const fixos = validos.filter(it=>it.rec || it.origem_recorrente_id);
+  const parcelados = validos.filter(it=>!it.rec && !it.origem_recorrente_id && it.grupo);
+  const avulsos = validos.filter(it=>!it.rec && !it.origem_recorrente_id && !it.grupo);
   const soma = arr => arr.reduce((s,it)=> s+Number(it.valor), 0);
 
   const cards = document.getElementById("tiposCards");
@@ -375,25 +375,65 @@ function pendRowBaixadoHtml(p){
   '</li>';
 }
 
-/** Desenha o quadro comparativo: a receber numa coluna, a pagar na outra. */
+/** Linha de conta fixa do mês ainda não confirmada: data prevista editável + confirmar/pular/editar/remover. */
+function recorrenteRowHtml(r){
+  const cat = r.categoria ? ' <span class="cat">('+escapeHtml(r.categoria)+')</span>' : "";
+  const ovTag = r.ov ? '<span class="tag ov">editado</span>' : "";
+  const cls = r.tipo==="entrada" ? "in" : "out";
+  const diaAlvo = Math.min(r.dia, diasNoMes(state.ano,state.mes));
+  const iso = state.ano+"-"+String(state.mes+1).padStart(2,"0")+"-"+String(diaAlvo).padStart(2,"0");
+  return '<li>'+
+    '<span class="pend-info"><span class="pend-desc">'+escapeHtml(r.descricao||"(sem descrição)")+'</span>'+cat+
+      '<span class="tag rec">🔁 fixo</span>'+ovTag+' <span class="pend-venc">previsto dia '+String(r.dia).padStart(2,"0")+'</span></span>'+
+    '<span class="pend-acoes">'+
+      '<span class="pend-val '+cls+'">'+fmt(Number(r.valor))+'</span>'+
+      '<input type="date" class="rec-data-confirmar" data-rid="'+r.id+'" value="'+iso+'">'+
+      '<button class="btn-primary btn-sm rec-confirmar" data-rid="'+r.id+'" title="Lançar no fluxo nessa data">✓</button>'+
+      '<span class="skip-x rec-pular" title="Pular só este mês (conta não paga)" data-rid="'+r.id+'">⊘</span>'+
+      '<span class="edit-x rec-editar" title="Editar" data-rid="'+r.id+'">✎</span>'+
+      '<span class="del-x rec-remover" title="Remover" data-rid="'+r.id+'">✕</span>'+
+    '</span>'+
+  '</li>';
+}
+
+/** Linha de conta fixa pulada neste mês: só mostra a opção de restaurar. */
+function recorrenteRowPuladoHtml(r){
+  const cat = r.categoria ? ' <span class="cat">('+escapeHtml(r.categoria)+')</span>' : "";
+  const cls = r.tipo==="entrada" ? "in" : "out";
+  return '<li class="pend-done">'+
+    '<span class="pend-info"><span class="pend-desc">'+escapeHtml(r.descricao||"(sem descrição)")+'</span>'+cat+
+      '<span class="tag rec">🔁 fixo</span><span class="tag pul">pulado</span></span>'+
+    '<span class="pend-acoes">'+
+      '<span class="pend-val '+cls+'">'+fmt(Number(r.valor))+'</span>'+
+      '<span class="restore-x rec-restaurar" title="Restaurar (incluir de novo neste mês)" data-rid="'+r.id+'">↺</span>'+
+    '</span>'+
+  '</li>';
+}
+
+/** Desenha o quadro comparativo: a receber numa coluna, a pagar na outra (pendentes + contas fixas do mês). */
 function renderPendentes(){
   const listaReceber = document.getElementById("listaReceber");
   const listaPagar = document.getElementById("listaPagar");
   if(!listaReceber || !listaPagar) return;
-  const ordena = arr => arr.slice().sort((a,b)=>
+  const recs = recorrentesDoMesParaQuadro(state.ano, state.mes);
+  const ordenaPend = arr => arr.slice().sort((a,b)=>
     (pendBaixadoNoMes(a)?1:0)-(pendBaixadoNoMes(b)?1:0) || (a.venc_dia||99)-(b.venc_dia||99));
+  const ordenaRec = arr => arr.slice().sort((a,b)=> (a.pulado?1:0)-(b.pulado?1:0) || a.dia-b.dia);
 
-  const montaColuna = (arr, elId, totalId)=>{
+  const montaColuna = (pendArr, recArr, elId, totalId)=>{
     const el = document.getElementById(elId);
-    const abertos = arr.filter(p=>!pendBaixadoNoMes(p));
+    const pendAbertos = pendArr.filter(p=>!pendBaixadoNoMes(p));
+    const recAbertos = recArr.filter(r=>!r.pulado);
     const totalEl = document.getElementById(totalId);
-    if(totalEl) totalEl.textContent = abertos.length ? "· "+fmt(abertos.reduce((s,p)=>s+Number(p.valor),0)) : "";
-    if(!arr.length){ el.innerHTML = '<div class="rank-empty">Nada por aqui.</div>'; return; }
+    const total = pendAbertos.reduce((s,p)=>s+Number(p.valor),0) + recAbertos.reduce((s,r)=>s+Number(r.valor),0);
+    if(totalEl) totalEl.textContent = (pendAbertos.length+recAbertos.length) ? "· "+fmt(total) : "";
+    if(!pendArr.length && !recArr.length){ el.innerHTML = '<div class="rank-empty">Nada por aqui.</div>'; return; }
     let html = '<ul class="pend">';
-    ordena(arr).forEach(p=>{ html += pendBaixadoNoMes(p) ? pendRowBaixadoHtml(p) : pendRowHtml(p); });
+    ordenaRec(recArr).forEach(r=>{ html += r.pulado ? recorrenteRowPuladoHtml(r) : recorrenteRowHtml(r); });
+    ordenaPend(pendArr).forEach(p=>{ html += pendBaixadoNoMes(p) ? pendRowBaixadoHtml(p) : pendRowHtml(p); });
     html += '</ul>';
     el.innerHTML = html;
   };
-  montaColuna(state.pendentes.filter(p=>p.tipo==="entrada"), "listaReceber", "totReceber");
-  montaColuna(state.pendentes.filter(p=>p.tipo==="saida"), "listaPagar", "totPagar");
+  montaColuna(state.pendentes.filter(p=>p.tipo==="entrada"), recs.filter(r=>r.tipo==="entrada"), "listaReceber", "totReceber");
+  montaColuna(state.pendentes.filter(p=>p.tipo==="saida"), recs.filter(r=>r.tipo==="saida"), "listaPagar", "totPagar");
 }

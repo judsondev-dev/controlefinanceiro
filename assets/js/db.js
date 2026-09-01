@@ -41,7 +41,7 @@ async function carregar(){
     state.lancamentos = (l.data||[]).map(x=>({
       id:x.id, grupo:x.grupo, ano:x.ano, mes:x.mes, dia:x.dia,
       tipo:x.tipo, descricao:x.descricao, categoria:x.categoria, valor:Number(x.valor),
-      origem:x.origem||"manual"
+      origem:x.origem||"manual", origem_recorrente_id:x.origem_recorrente_id||null
     }));
     state.recorrentes = (r.data||[]).map(x=>({
       id:x.id, dia:x.dia, tipo:x.tipo, descricao:x.descricao, categoria:x.categoria, valor:Number(x.valor)
@@ -68,11 +68,24 @@ async function carregar(){
 }
 
 /**
- * Lançamentos efetivos de um mês: avulsos/parcelas do mês + contas fixas
- * (aplicando personalizações do mês). Usa o mês selecionado por padrão;
- * aceita ano/mes explícitos para simular outros meses (ex.: projeção).
+ * Um id de conta fixa já virou lançamento real neste mês (foi confirmada)?
  */
-function lancamentosDoMes(ano, mes){
+function recorrenteConfirmadaNoMes(recorrenteId, ano, mes){
+  return state.lancamentos.some(l => l.origem_recorrente_id===recorrenteId && l.ano===ano && l.mes===mes);
+}
+
+/**
+ * Lançamentos efetivos de um mês: avulsos/parcelas do mês (inclui contas
+ * fixas já confirmadas, que viram lançamento normal marcado com
+ * origem_recorrente_id) + contas fixas ainda não confirmadas, só quando
+ * incluirPrevisao=true (usado pela projeção, que assume que vão
+ * acontecer). Fora da projeção, uma conta fixa só entra no fluxo depois
+ * de confirmada no quadro "A receber / A pagar" — assim o saldo não
+ * abate uma conta que ainda nem foi paga de fato.
+ * Usa o mês selecionado por padrão; aceita ano/mes explícitos pra
+ * simular outros meses.
+ */
+function lancamentosDoMes(ano, mes, incluirPrevisao){
   if(ano==null) ano=state.ano;
   if(mes==null) mes=state.mes;
   const nDias = diasNoMes(ano, mes);
@@ -80,15 +93,38 @@ function lancamentosDoMes(ano, mes){
     .filter(l => l.ano===ano && l.mes===mes)
     .map(l => Object.assign({}, l, {rec:false}));
   const recs = [];
+  if(incluirPrevisao){
+    state.recorrentes.forEach(r => {
+      if(recorrenteConfirmadaNoMes(r.id, ano, mes)) return; // já é um lançamento real, não duplica
+      const ov = state.overrides[ovKey(r.id, ano, mes)];
+      const eff = ov ? ov : r;
+      const pulado = !!(ov && ov.pulado);
+      if(pulado) return;
+      if(eff.dia <= nDias){
+        recs.push({id:r.id, dia:eff.dia, tipo:eff.tipo, descricao:eff.descricao, categoria:eff.categoria, valor:eff.valor, rec:true, grupo:null, ov: !!ov, pulado:false, previsto:true});
+      }
+    });
+  }
+  return fixos.concat(recs);
+}
+
+/**
+ * Contas fixas do mês que ainda não viraram lançamento — pra mostrar no
+ * quadro "A receber / A pagar" com data editável e opção de confirmar,
+ * pular ou restaurar. Inclui as puladas (pra dar a opção de restaurar).
+ */
+function recorrentesDoMesParaQuadro(ano, mes){
+  const nDias = diasNoMes(ano, mes);
+  const out = [];
   state.recorrentes.forEach(r => {
+    if(recorrenteConfirmadaNoMes(r.id, ano, mes)) return;
     const ov = state.overrides[ovKey(r.id, ano, mes)];
     const eff = ov ? ov : r;
     const pulado = !!(ov && ov.pulado);
-    if(eff.dia <= nDias){
-      recs.push({id:r.id, dia:eff.dia, tipo:eff.tipo, descricao:eff.descricao, categoria:eff.categoria, valor:eff.valor, rec:true, grupo:null, ov: !!ov && !pulado, pulado:pulado});
-    }
+    if(eff.dia > nDias) return;
+    out.push({id:r.id, dia:eff.dia, tipo:eff.tipo, descricao:eff.descricao, categoria:eff.categoria, valor:eff.valor, ov: !!ov && !pulado, pulado});
   });
-  return fixos.concat(recs);
+  return out;
 }
 
 /**

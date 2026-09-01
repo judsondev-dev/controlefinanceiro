@@ -28,9 +28,12 @@ create table if not exists public.lancamentos (
   categoria  text,
   valor      numeric(14,2) not null check (valor > 0),
   origem     text not null default 'manual' check (origem in ('manual','importado')),
+  origem_recorrente_id uuid references public.recorrentes(id) on delete set null,
   created_at timestamptz not null default now()
 );
 alter table public.lancamentos add column if not exists origem text not null default 'manual' check (origem in ('manual','importado'));
+alter table public.lancamentos add column if not exists origem_recorrente_id uuid references public.recorrentes(id) on delete set null;
+create index if not exists idx_lancamentos_origem_recorrente on public.lancamentos (origem_recorrente_id, ano, mes);
 
 -- --------------------------------------------------------------------
 -- Contas fixas (recorrentes) — repetem todo mês

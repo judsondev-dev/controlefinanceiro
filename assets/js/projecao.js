@@ -26,7 +26,7 @@ function pendentesRecorrentesDoMes(ano, mes){
 /** Simula um mês inteiro dia a dia a partir de um saldo inicial dado. */
 function simulaMes(ano, mes, saldoInicial){
   const nDias = diasNoMes(ano, mes);
-  const itens = lancamentosDoMes(ano, mes).concat(pendentesRecorrentesDoMes(ano, mes));
+  const itens = lancamentosDoMes(ano, mes, true).concat(pendentesRecorrentesDoMes(ano, mes));
   const porDia = {};
   itens.forEach(it=>{
     if(it.pulado) return;

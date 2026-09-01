@@ -9,10 +9,10 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 - Fluxo de caixa dia a dia com saldo acumulado e alerta de saldo negativo
 - **💰 Saldo disponível hoje**: um número separado do saldo projetado — só desconta contas com vencimento até hoje; contas futuras continuam aparecendo no fluxo e nas projeções, mas não pesam nesse número antes da data chegar
 - Entradas e saídas, com categorias
-- Contas **fixas** (repetem todo mês), com opção de editar/pular/antecipar em um mês específico
+- Contas **fixas** (repetem todo mês) — cada mês elas aparecem no quadro "A receber / A pagar" aguardando confirmação (com opção de pular só aquele mês); só entram no fluxo e abatem o saldo depois de confirmadas, mas continuam entrando normalmente nas projeções (que assumem que vão acontecer). Editar/antecipar continua valendo para "todos os meses" ou "só este mês"
 - Cada lançamento guarda a **origem** (manual ou importado do extrato), com uma tag "📥 importado" na tabela e na lista de "em espera" — a origem é herdada ao dar baixa, converter ou desfazer, então continua rastreável depois de virar lançamento
 - Compras **parceladas** (lançadas automaticamente nos meses seguintes)
-- **Quadro "A receber / A pagar"** (primeira tela do app): as duas listas lado a lado, cada item com a data prevista já preenchida (mas editável — nem sempre a data real bate com a prevista) e um botão para lançar direto no fluxo naquela data, sem abrir formulário; suporta itens **mensais**
+- **Quadro "A receber / A pagar"** (primeira tela do app): as duas listas lado a lado — itens em espera **e contas fixas do mês ainda não confirmadas** — cada um com a data prevista já preenchida (mas editável — nem sempre a data real bate com a prevista) e um botão para lançar direto no fluxo naquela data, sem abrir formulário; suporta itens **mensais**
 - **Importação de extrato** em CSV e OFX, com escolha do período (De/Até) a importar e um **checkpoint** que compara com o que já está no sistema (mesma data, tipo, valor e descrição) — mostra o que é novo e o que já foi importado antes, com opção de pular os repetidos automaticamente; os itens entram como "em espera" para você classificar e lançar
 - Gráfico da evolução do saldo e ranking de **maiores receitas/despesas por categoria** (clicável)
 - **Projeção dos próximos meses** (6/12/24): saldo inicial, entradas, saídas, menor saldo e saldo final projetados a partir das contas fixas e parcelas já lançadas; clique numa linha para ir direto àquele mês

@@ -162,6 +162,21 @@ function init(){
       }
       const d=e.target.closest(".pend-del");
       if(d){ removerPendente(d.dataset.pid); return; }
+      // contas fixas ainda não confirmadas neste mês
+      const rcf=e.target.closest(".rec-confirmar");
+      if(rcf){
+        const dataEl=rcf.closest("li").querySelector(".rec-data-confirmar");
+        confirmarRecorrente(rcf.dataset.rid, dataEl?dataEl.value:"");
+        return;
+      }
+      const rp=e.target.closest(".rec-pular");
+      if(rp){ pularRecorrente(rp.dataset.rid); return; }
+      const rr=e.target.closest(".rec-restaurar");
+      if(rr){ restaurarRecorrente(rr.dataset.rid); return; }
+      const re=e.target.closest(".rec-editar");
+      if(re){ iniciarEdicao(re.dataset.rid, true); return; }
+      const rd=e.target.closest(".rec-remover");
+      if(rd){ removerItem(rd.dataset.rid, true, ""); return; }
     });
   });
 
