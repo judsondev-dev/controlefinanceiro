@@ -60,17 +60,21 @@ async function addLancamento(){
       if(error) throw error;
       state.recorrentes.push(...data.map(x=>({id:x.id,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor)})));
     }else if(parcelas>1){
+      // Parcelas nascem em "em espera": cada uma só entra no fluxo quando confirmada
+      // individualmente (mesmo motivo das contas fixas — não abater antes de acontecer).
       const grupo = (crypto.randomUUID? crypto.randomUUID() : String(Date.now()));
       const rows=[];
       for(let i=0;i<parcelas;i++){
         const alvo=new Date(state.ano, state.mes+i, 1);
         const ano=alvo.getFullYear(), mes=alvo.getMonth();
         const diaAlvo=Math.min(dia, diasNoMes(ano,mes));
-        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem});
+        rows.push({grupo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor,
+                   venc_ano:ano, venc_mes:mes, venc_dia:diaAlvo, recorrente:false, origem});
       }
-      const {data,error}=await db.from("lancamentos").insert(rows).select();
+      const {data,error}=await db.from("pendentes").insert(rows).select();
       if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
+      state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual",venc_ano:x.venc_ano,venc_mes:x.venc_mes,baixa_ano:x.baixa_ano,baixa_mes:x.baixa_mes,grupo:x.grupo||null})));
+      toast(parcelas+" parcelas adicionadas em \"Em espera\" — confirme cada uma no quadro quando pagar.");
     }else{
       const row={ano:state.ano,mes:state.mes,dia,tipo,descricao,categoria,valor,origem};
       const {data,error}=await db.from("lancamentos").insert(row).select();
@@ -324,7 +328,7 @@ async function baixaDireta(id){
   const mes = (p.venc_mes!=null)?p.venc_mes:state.mes;
   const dia = (p.venc_dia>=1&&p.venc_dia<=31)?p.venc_dia:1;
   try{
-    const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual"};
+    const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual", grupo:p.grupo||null};
     const {data,error}=await db.from("lancamentos").insert(row).select(); if(error) throw error;
     state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
     if(p.recorrente){
@@ -354,7 +358,7 @@ async function baixaComData(id, isoData){
   const ano=parseInt(m[1],10), mes=parseInt(m[2],10)-1, dia=parseInt(m[3],10);
   if(ocupado) return; ocupado=true;
   try{
-    const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual"};
+    const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual", grupo:p.grupo||null};
     const {data,error}=await db.from("lancamentos").insert(row).select(); if(error) throw error;
     state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
     if(p.recorrente){
@@ -372,8 +376,9 @@ async function baixaComData(id, isoData){
 
 /**
  * Salva a edição de um item em espera. Se "Parcelas" for maior que 1,
- * em vez de só atualizar o pendente, lança as parcelas direto no fluxo
- * (mesmo comportamento da baixa) e remove o item de "em espera".
+ * em vez de só atualizar o pendente, divide ele em N parcelas (também
+ * em espera, cada uma com sua própria data prevista), substituindo o
+ * pendente original.
  */
 async function salvarEdicaoPendente(){
   const tipo=document.getElementById("tipo").value;
@@ -389,7 +394,9 @@ async function salvarEdicaoPendente(){
   const {id} = editandoPend;
 
   if(parcelas>1){
-    if(!diaRaw||diaRaw<1||diaRaw>31){ toast("Informe um dia válido (1 a 31) para lançar parcelado.", "erro"); return; }
+    // Divide o pendente em N parcelas, cada uma esperando sua própria confirmação
+    // (mesmo comportamento de criar um lançamento novo já parcelado).
+    if(!diaRaw||diaRaw<1||diaRaw>31){ toast("Informe um dia válido (1 a 31) para parcelar.", "erro"); return; }
     const pend = state.pendentes.find(x=>x.id===id);
     const anoBase = (pend && pend.venc_ano!=null) ? pend.venc_ano : state.ano;
     const mesBase = (pend && pend.venc_mes!=null) ? pend.venc_mes : state.mes;
@@ -400,16 +407,17 @@ async function salvarEdicaoPendente(){
         const alvo=new Date(anoBase, mesBase+i, 1);
         const ano=alvo.getFullYear(), mes=alvo.getMonth();
         const diaAlvo=Math.min(diaRaw, diasNoMes(ano,mes));
-        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem});
+        rows.push({grupo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor,
+                   venc_ano:ano, venc_mes:mes, venc_dia:diaAlvo, recorrente:false, origem});
       }
-      const {data,error}=await db.from("lancamentos").insert(rows).select(); if(error) throw error;
-      state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual",origem_recorrente_id:x.origem_recorrente_id||null})));
+      const {data,error}=await db.from("pendentes").insert(rows).select(); if(error) throw error;
       const {error:eDel}=await db.from("pendentes").delete().eq("id",id); if(eDel) throw eDel;
       state.pendentes=state.pendentes.filter(x=>x.id!==id);
+      state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual",venc_ano:x.venc_ano,venc_mes:x.venc_mes,grupo:x.grupo||null})));
       finalizarEdicao();
       render();
-      toast("Lançado em "+parcelas+" parcelas.");
-    }catch(e){ toast("Erro ao lançar parcelado: "+(e.message||e), "erro"); }
+      toast("Dividido em "+parcelas+" parcelas em \"Em espera\".");
+    }catch(e){ toast("Erro ao parcelar: "+(e.message||e), "erro"); }
     return;
   }
 
@@ -436,28 +444,58 @@ async function reabrirPendente(id){
   finally{ ocupado=false; }
 }
 
-/** Exclui um item em espera. Oferece "Desfazer" após remover. */
+/**
+ * Exclui um item em espera. Se for parcela de um grupo com outras
+ * parcelas ainda pendentes, oferece excluir só esta ou todas de uma vez.
+ * Oferece "Desfazer" após remover uma única (não a exclusão em lote).
+ */
 async function removerPendente(id){
   if(!db) return;
   if(ocupado) return; ocupado=true;
-  const okRem = await confirmDialog({
-    titulo: "Remover item em espera",
-    mensagem: "Remover este item em espera?",
-    textoOk: "Remover",
-    perigo: true
-  });
-  if(!okRem){ ocupado=false; return; }
-  const backup = state.pendentes.slice();
   const item = state.pendentes.find(x=>x.id===id);
+  const doGrupo = item && item.grupo ? state.pendentes.filter(p=>p.grupo===item.grupo) : [];
+  if(doGrupo.length>1){
+    const escolha = await chooseDialog(
+      "Esta é uma parcela",
+      "Esta compra tem "+doGrupo.length+" parcelas ainda em espera. Remover todas, ou só esta?",
+      [
+        {label:"Todas as parcelas ("+doGrupo.length+")", value:"todas", estilo:"danger"},
+        {label:"Só esta parcela", value:"esta", estilo:"ghost"},
+        {label:"Cancelar", value:"cancelar", estilo:"ghost"}
+      ]
+    );
+    if(escolha==="cancelar" || !escolha){ ocupado=false; return; }
+    if(escolha==="todas"){
+      const backup = state.pendentes.slice();
+      const idsGrupo = doGrupo.map(p=>p.id);
+      state.pendentes = state.pendentes.filter(p=>p.grupo!==item.grupo); render(); // otimista
+      try{
+        const {error}=await db.from("pendentes").delete().in("id", idsGrupo); if(error) throw error;
+        toast(doGrupo.length+" parcelas removidas.");
+      }catch(e){ toast("Erro ao remover: "+(e.message||e), "erro"); state.pendentes=backup; render(); }
+      finally{ ocupado=false; }
+      return;
+    }
+    // escolha==="esta": segue o fluxo normal abaixo
+  }else{
+    const okRem = await confirmDialog({
+      titulo: "Remover item em espera",
+      mensagem: "Remover este item em espera?",
+      textoOk: "Remover",
+      perigo: true
+    });
+    if(!okRem){ ocupado=false; return; }
+  }
+  const backup = state.pendentes.slice();
   state.pendentes = state.pendentes.filter(x=>x.id!==id); render(); // otimista
   try{
     const {error}=await db.from("pendentes").delete().eq("id",id); if(error) throw error;
     if(item){
       toastAcao("Item em espera removido.", "Desfazer", async ()=>{
         try{
-          const row={tipo:item.tipo, descricao:item.descricao, categoria:item.categoria, valor:item.valor, venc_dia:item.venc_dia, recorrente:item.recorrente, origem:item.origem||"manual"};
+          const row={tipo:item.tipo, descricao:item.descricao, categoria:item.categoria, valor:item.valor, venc_dia:item.venc_dia, recorrente:item.recorrente, origem:item.origem||"manual", venc_ano:item.venc_ano||null, venc_mes:item.venc_mes!=null?item.venc_mes:null, grupo:item.grupo||null};
           const {data,error:e2}=await db.from("pendentes").insert(row).select(); if(e2) throw e2;
-          state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual"})));
+          state.pendentes.push(...data.map(x=>({id:x.id,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),venc_dia:x.venc_dia,recorrente:!!x.recorrente,origem:x.origem||"manual",venc_ano:x.venc_ano,venc_mes:x.venc_mes,grupo:x.grupo||null})));
           render();
         }catch(e){ toast("Erro ao desfazer: "+(e.message||e), "erro"); }
       });

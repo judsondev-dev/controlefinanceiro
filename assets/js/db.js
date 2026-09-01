@@ -58,7 +58,8 @@ async function carregar(){
       id:x.id, tipo:x.tipo, descricao:x.descricao, categoria:x.categoria,
       valor:Number(x.valor), venc_dia:x.venc_dia, recorrente: !!x.recorrente,
       baixa_ano: x.baixa_ano, baixa_mes: x.baixa_mes,
-      venc_ano: x.venc_ano, venc_mes: x.venc_mes, origem:x.origem||"manual"
+      venc_ano: x.venc_ano, venc_mes: x.venc_mes, origem:x.origem||"manual",
+      grupo: x.grupo||null
     }));
     state.orcamentos = (b.data||[]).map(x=>({id:x.id, categoria:x.categoria, tipo:x.tipo||"saida", limite:Number(x.limite)}));
     render();

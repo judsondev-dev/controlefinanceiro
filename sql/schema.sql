@@ -83,9 +83,12 @@ create table if not exists public.pendentes (
   venc_ano   integer,
   venc_mes   integer,
   origem     text not null default 'manual' check (origem in ('manual','importado')),
+  grupo      text,                                     -- agrupa parcelas ainda não confirmadas (null se avulso)
   created_at timestamptz not null default now()
 );
 alter table public.pendentes add column if not exists origem text not null default 'manual' check (origem in ('manual','importado'));
+alter table public.pendentes add column if not exists grupo text;
+create index if not exists idx_pendentes_grupo on public.pendentes (grupo);
 
 -- --------------------------------------------------------------------
 -- Metas e compromissos por categoria (valor mensal a cumprir) — usado

@@ -1,32 +1,37 @@
 /* =====================================================================
    Projeção — simula os próximos meses a partir do mês selecionado,
    usando o que já está lançado (contas fixas + parcelas futuras já
-   criadas) mais os itens "em espera" marcados como mensais (🔁), já
-   que esses representam uma expectativa recorrente (ex.: um cliente
-   fixo que sempre paga, mas que você confirma o recebimento na mão).
-   Pendentes avulsos (não recorrentes) ficam de fora, por não serem
-   previsíveis. Um pendente mensal já baixado no mês simulado não
-   entra de novo (o lançamento real dele já está contado).
+   criadas) mais os itens "em espera": os marcados como mensais (🔁,
+   ex.: um cliente fixo que sempre paga, mas que você confirma o
+   recebimento na mão) entram todo mês, e os avulsos com data prevista
+   conhecida (ex.: parcelas de uma compra) entram só no mês previsto.
+   Pendentes sem data nenhuma ficam de fora, por não serem previsíveis.
+   Um pendente mensal já baixado no mês simulado não entra de novo (o
+   lançamento real dele já está contado).
    ===================================================================== */
 "use strict";
 
 const PROJ_KEY = "cf_proj_meses";
 
-/** Pendentes mensais (🔁) como previsão para um mês — só entra na projeção. */
-function pendentesRecorrentesDoMes(ano, mes){
+/** Pendentes previstos para um mês (mensais + avulsos com data conhecida) — só entra na projeção. */
+function pendentesProjetadosDoMes(ano, mes){
   const nDias = diasNoMes(ano, mes);
-  return state.pendentes
-    .filter(p => p.recorrente && !(p.baixa_ano===ano && p.baixa_mes===mes))
-    .map(p => ({
-      dia: (p.venc_dia>=1 && p.venc_dia<=31) ? Math.min(p.venc_dia, nDias) : 1,
-      tipo: p.tipo, valor: p.valor, pulado: false
-    }));
+  const out = [];
+  state.pendentes.forEach(p=>{
+    if(p.recorrente){
+      if(p.baixa_ano===ano && p.baixa_mes===mes) return; // já baixado neste mês
+      out.push({dia:(p.venc_dia>=1&&p.venc_dia<=31)?Math.min(p.venc_dia,nDias):1, tipo:p.tipo, valor:p.valor, pulado:false});
+    }else if(p.venc_ano===ano && p.venc_mes===mes && p.venc_dia>=1 && p.venc_dia<=31){
+      out.push({dia:Math.min(p.venc_dia,nDias), tipo:p.tipo, valor:p.valor, pulado:false});
+    }
+  });
+  return out;
 }
 
 /** Simula um mês inteiro dia a dia a partir de um saldo inicial dado. */
 function simulaMes(ano, mes, saldoInicial){
   const nDias = diasNoMes(ano, mes);
-  const itens = lancamentosDoMes(ano, mes, true).concat(pendentesRecorrentesDoMes(ano, mes));
+  const itens = lancamentosDoMes(ano, mes, true).concat(pendentesProjetadosDoMes(ano, mes));
   const porDia = {};
   itens.forEach(it=>{
     if(it.pulado) return;
