@@ -12,7 +12,7 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 - Contas **fixas** (repetem todo mês), com opção de editar/pular/antecipar em um mês específico
 - Cada lançamento guarda a **origem** (manual ou importado do extrato), com uma tag "📥 importado" na tabela e na lista de "em espera" — a origem é herdada ao dar baixa, converter ou desfazer, então continua rastreável depois de virar lançamento
 - Compras **parceladas** (lançadas automaticamente nos meses seguintes)
-- **Em espera** (a receber / a pagar): itens fora do fluxo até você dar baixa; suporta itens **mensais**
+- **Quadro "A receber / A pagar"** (primeira tela do app): as duas listas lado a lado, cada item com a data prevista já preenchida (mas editável — nem sempre a data real bate com a prevista) e um botão para lançar direto no fluxo naquela data, sem abrir formulário; suporta itens **mensais**
 - **Importação de extrato** em CSV e OFX, com escolha do período (De/Até) a importar e um **checkpoint** que compara com o que já está no sistema (mesma data, tipo, valor e descrição) — mostra o que é novo e o que já foi importado antes, com opção de pular os repetidos automaticamente; os itens entram como "em espera" para você classificar e lançar
 - Gráfico da evolução do saldo e ranking de **maiores receitas/despesas por categoria** (clicável)
 - **Projeção dos próximos meses** (6/12/24): saldo inicial, entradas, saídas, menor saldo e saldo final projetados a partir das contas fixas e parcelas já lançadas; clique numa linha para ir direto àquele mês
@@ -20,7 +20,7 @@ Feito em **HTML, CSS e JavaScript puro** (sem build), com dados na nuvem via **S
 - **Despesas: avulso, parcelado e fixo**: veja de um lugar só quantas despesas do mês são únicas, parte de uma compra parcelada ou conta fixa (com total de cada); clique num item para ir até o dia dele no fluxo
 - Avisos de erro em **toast** não bloqueante, com **desfazer** ao remover um lançamento ou item em espera, e aviso quando a conexão com a internet cai
 - Confirmações (excluir, limpar mês, importar extrato...) em um **diálogo com o visual do app**, no lugar do pop-up padrão do navegador
-- **Menu lateral com módulos** (Resumo, Lançar, Análises, Em espera, Fluxo diário) — só um módulo fica visível por vez, em vez de rolar uma página só com tudo junto; no celular vira um menu que abre/fecha. Dentro de cada módulo, os painéis continuam recolhíveis se quiser esconder algum
+- **Menu lateral com módulos** (Em espera, Resumo, Lançar, Análises, Fluxo diário) — só um módulo fica visível por vez, em vez de rolar uma página só com tudo junto; no celular vira um menu que abre/fecha. Dentro de cada módulo, os painéis continuam recolhíveis se quiser esconder algum
 - Navegação por mês e layout **responsivo** (funciona no celular)
 
 ## Como usar

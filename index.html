@@ -22,10 +22,10 @@
       </div>
     </div>
     <nav class="sidebar-nav" id="sidebarNav" aria-label="Módulos">
-      <button type="button" class="nav-item active" data-modulo="secResumo">📊 <span>Resumo</span></button>
+      <button type="button" class="nav-item active" data-modulo="secEspera">⏳ <span>Em espera</span></button>
+      <button type="button" class="nav-item" data-modulo="secResumo">📊 <span>Resumo</span></button>
       <button type="button" class="nav-item" data-modulo="secLancar">✏️ <span>Lançar</span></button>
       <button type="button" class="nav-item" data-modulo="secAnalises">🔎 <span>Análises</span></button>
-      <button type="button" class="nav-item" data-modulo="secEspera">⏳ <span>Em espera</span></button>
       <button type="button" class="nav-item" data-modulo="secFluxo">📅 <span>Fluxo diário</span></button>
     </nav>
   </aside>
@@ -84,8 +84,30 @@
           </div>
         </div>
 
+        <!-- ===================== EM ESPERA (COMPARATIVO) ===================== -->
+        <div class="panel modulo" id="secEspera">
+          <div class="flex-sp">
+            <h2 style="margin:0">⏳ A receber / A pagar</h2>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <button class="btn-ghost btn-sm" id="btnImportExtrato">📥 Importar extrato</button>
+              <input type="file" id="fileExtrato" accept=".csv,.ofx,.txt,text/csv" style="display:none">
+            </div>
+          </div>
+          <div class="pend-grid">
+            <div>
+              <div class="pend-col-titulo pos">💚 A receber <span id="totReceber" class="pend-col-total"></span></div>
+              <div id="listaReceber"></div>
+            </div>
+            <div>
+              <div class="pend-col-titulo neg">🔴 A pagar <span id="totPagar" class="pend-col-total"></span></div>
+              <div id="listaPagar"></div>
+            </div>
+          </div>
+          <div class="hint">A data ao lado de cada item já vem preenchida com o previsto, mas pode ajustar — nem sempre o recebimento ou o pagamento cai no dia certo. Clique em <strong>✓</strong> para lançar direto no fluxo naquela data. Marque <strong>"Em espera"</strong> no formulário de lançamento (módulo Lançar) para adicionar itens aqui; marcando também <strong>"Repete todo mês"</strong>, o item vira <strong>🔁 mensal</strong> e continua na lista após a baixa, pronto para o próximo mês.</div>
+        </div>
+
         <!-- ===================== RESUMO DO MÊS ===================== -->
-        <div class="secao modulo" id="secResumo">
+        <div class="secao modulo" id="secResumo" hidden>
           <!-- Alerta de saldo negativo -->
           <div class="warn" id="alerta"></div>
 
@@ -275,19 +297,6 @@
           </div>
         </div>
 
-        <!-- ===================== EM ESPERA ===================== -->
-        <div class="panel modulo" id="secEspera" hidden>
-          <div class="flex-sp">
-            <h2 style="margin:0">⏳ Em espera — a receber / a pagar</h2>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <span id="pendResumo" class="hint" style="margin:0"></span>
-              <button class="btn-ghost btn-sm" id="btnImportExtrato">📥 Importar extrato</button>
-              <input type="file" id="fileExtrato" accept=".csv,.ofx,.txt,text/csv" style="display:none">
-            </div>
-          </div>
-          <div id="pendentesLista"></div>
-          <div class="hint">Itens que ainda não entraram no fluxo. Ao receber/pagar, clique em <strong>Dar baixa</strong>, escolha a data e ele vai para o fluxo de caixa do mês selecionado. Marque <strong>"Em espera"</strong> no formulário acima para adicionar aqui. Marcando também <strong>"Repete todo mês"</strong>, o pendente vira <strong>🔁 mensal</strong> e continua na lista após a baixa, pronto para o próximo mês.</div>
-        </div>
 
         <!-- ===================== FLUXO DE CAIXA DIÁRIO ===================== -->
         <div class="panel modulo" id="secFluxo" hidden>

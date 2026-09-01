@@ -145,18 +145,24 @@ function init(){
     if(x) removerItem(x.dataset.id, x.dataset.rec==="true", x.dataset.grupo||"");
   });
 
-  // Importação de extrato e lista de pendentes
+  // Importação de extrato e quadro comparativo (a receber / a pagar)
   document.getElementById("btnImportExtrato").addEventListener("click", ()=>document.getElementById("fileExtrato").click());
   document.getElementById("fileExtrato").addEventListener("change", e=>{ if(e.target.files[0]) importarExtrato(e.target.files[0]); e.target.value=""; });
-  document.getElementById("pendentesLista").addEventListener("click", e=>{
-    const ed=e.target.closest(".pend-edit");
-    if(ed){ iniciarEdicaoPendente(ed.dataset.pid); return; }
-    const rb=e.target.closest(".pend-reabrir");
-    if(rb){ reabrirPendente(rb.dataset.pid); return; }
-    const b=e.target.closest(".pend-baixa");
-    if(b){ iniciarBaixa(b.dataset.pid); return; }
-    const d=e.target.closest(".pend-del");
-    if(d){ removerPendente(d.dataset.pid); return; }
+  ["listaReceber","listaPagar"].forEach(id=>{
+    document.getElementById(id).addEventListener("click", e=>{
+      const ed=e.target.closest(".pend-edit");
+      if(ed){ iniciarEdicaoPendente(ed.dataset.pid); return; }
+      const rb=e.target.closest(".pend-reabrir");
+      if(rb){ reabrirPendente(rb.dataset.pid); return; }
+      const cf=e.target.closest(".pend-confirmar");
+      if(cf){
+        const dataEl=cf.closest("li").querySelector(".pend-data-baixa");
+        baixaComData(cf.dataset.pid, dataEl?dataEl.value:"");
+        return;
+      }
+      const d=e.target.closest(".pend-del");
+      if(d){ removerPendente(d.dataset.pid); return; }
+    });
   });
 
   // Conecta automaticamente com as credenciais salvas (config.js ou navegador)

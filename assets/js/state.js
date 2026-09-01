@@ -10,7 +10,6 @@ const MODULO_KEY = "cf_modulo_atual";     // último módulo visto no menu later
 
 let db = null;            // cliente supabase-js
 let editando = null;      // {id, rec} quando editando um lançamento
-let baixando = null;      // {id} quando dando baixa em um pendente
 let editandoPend = null;  // {id} quando editando um pendente (em espera)
 let ocupado = false;      // trava contra clique duplo enquanto grava no Supabase
 let catAtual = null, tipoAtual = null; // categoria aberta no modal

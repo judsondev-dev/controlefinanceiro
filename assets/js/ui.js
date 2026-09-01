@@ -66,10 +66,9 @@ function iniciarEdicao(id, rec){
   document.getElementById("descricao").focus();
 }
 
-/** Sai de qualquer modo especial (edição, baixa, edição de pendente). */
+/** Sai de qualquer modo especial (edição, edição de pendente). */
 function finalizarEdicao(){
   editando = null;
-  baixando = null;
   editandoPend = null;
   document.getElementById("recorrente").disabled = false;
   document.getElementById("recorrente").checked = false;
@@ -115,36 +114,7 @@ function abrirNovoLancamento(){
   setTimeout(()=>document.getElementById("descricao").focus(), 350);
 }
 
-/* ---------- Formulário: baixa e edição de pendentes ---------- */
-
-/** Abre um pendente no formulário para confirmar a baixa. */
-function iniciarBaixa(id){
-  const p = state.pendentes.find(x=>x.id===id);
-  if(!p) return;
-  if(editando) finalizarEdicao();
-  baixando = {id};
-  // Se veio de extrato (tem data original), posiciona o app no mês da transação
-  if(p.venc_ano!=null && p.venc_mes!=null){
-    state.ano = p.venc_ano; state.mes = p.venc_mes;
-    syncConfigInputs(); render();
-  }
-  document.getElementById("tipo").value = p.tipo;
-  document.getElementById("dia").value = p.venc_dia || (new Date()).getDate();
-  document.getElementById("descricao").value = p.descricao || "";
-  document.getElementById("categoria").value = p.categoria || "";
-  document.getElementById("valor").value = p.valor;
-  document.getElementById("recorrente").checked = false;
-  document.getElementById("recorrente").disabled = true;
-  document.getElementById("emEspera").checked = false;
-  document.getElementById("emEspera").disabled = true;
-  document.getElementById("marcarImportado").checked = p.origem==="importado";
-  document.getElementById("marcarImportado").disabled = false;
-  const pr = document.getElementById("parcelas"); pr.value="1"; pr.disabled=false; // permite parcelar ao dar baixa
-  document.getElementById("btnAdd").textContent = "Confirmar baixa → "+MESES[state.mes]+"/"+state.ano;
-  document.getElementById("btnCancelarEd").style.display = "inline-block";
-  destacarFormulario();
-  document.getElementById("dia").focus();
-}
+/* ---------- Formulário: edição de pendentes ---------- */
 
 /** Carrega um pendente no formulário para classificar/editar. */
 function iniciarEdicaoPendente(id){

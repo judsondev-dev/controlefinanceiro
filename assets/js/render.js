@@ -329,55 +329,71 @@ function pendBaixadoNoMes(p){
   return p.recorrente && p.baixa_ano===state.ano && p.baixa_mes===state.mes;
 }
 
-/** Desenha a lista de itens em espera e o resumo a receber/a pagar. */
+/** Data prevista de um pendente, em ISO (yyyy-mm-dd), pra pré-preencher a baixa. */
+function dataPrevistaISO(p){
+  let ano, mes, dia;
+  if(p.venc_ano!=null && p.venc_mes!=null && p.venc_dia){ ano=p.venc_ano; mes=p.venc_mes; dia=p.venc_dia; }
+  else if(p.venc_dia){ ano=state.ano; mes=state.mes; dia=Math.min(p.venc_dia, diasNoMes(state.ano,state.mes)); }
+  else{ const h=new Date(); ano=h.getFullYear(); mes=h.getMonth(); dia=h.getDate(); }
+  return ano+"-"+String(mes+1).padStart(2,"0")+"-"+String(dia).padStart(2,"0");
+}
+
+/** Linha de um pendente em aberto: mostra a data prevista (editável) e o botão de baixa direta. */
+function pendRowHtml(p){
+  const cat = p.categoria ? ' <span class="cat">('+escapeHtml(p.categoria)+')</span>' : "";
+  const mensal = p.recorrente ? '<span class="tag rec">🔁 mensal</span>' : "";
+  const impTag = p.origem==="importado" ? '<span class="tag imp">📥 importado</span>' : "";
+  let venc = "";
+  if(p.venc_ano!=null && p.venc_mes!=null && p.venc_dia){
+    venc = '<span class="pend-venc">previsto '+String(p.venc_dia).padStart(2,"0")+"/"+String(p.venc_mes+1).padStart(2,"0")+"/"+p.venc_ano+'</span>';
+  }else if(p.venc_dia){
+    venc = '<span class="pend-venc">previsto dia '+String(p.venc_dia).padStart(2,"0")+'</span>';
+  }
+  const cls = p.tipo==="entrada" ? "in" : "out";
+  return '<li>'+
+    '<span class="pend-info"><span class="pend-desc">'+escapeHtml(p.descricao||"(sem descrição)")+'</span>'+cat+mensal+impTag+' '+venc+'</span>'+
+    '<span class="pend-acoes">'+
+      '<span class="pend-val '+cls+'">'+fmt(Number(p.valor))+'</span>'+
+      '<input type="date" class="pend-data-baixa" data-pid="'+p.id+'" value="'+dataPrevistaISO(p)+'">'+
+      '<button class="btn-primary btn-sm pend-confirmar" data-pid="'+p.id+'" title="Lançar no fluxo nessa data">✓</button>'+
+      '<span class="edit-x pend-edit" title="Editar" data-pid="'+p.id+'">✎</span>'+
+      '<span class="del-x pend-del" title="Remover" data-pid="'+p.id+'">✕</span>'+
+    '</span>'+
+  '</li>';
+}
+
+/** Linha de um pendente mensal já baixado neste mês. */
+function pendRowBaixadoHtml(p){
+  const cat = p.categoria ? ' <span class="cat">('+escapeHtml(p.categoria)+')</span>' : "";
+  const cls = p.tipo==="entrada" ? "in" : "out";
+  return '<li class="pend-done">'+
+    '<span class="pend-info"><span class="pend-desc">'+escapeHtml(p.descricao||"(sem descrição)")+'</span>'+cat+' <span class="tag ok">✓ baixado em '+MESES[state.mes]+'</span></span>'+
+    '<span class="pend-acoes">'+
+      '<span class="pend-val '+cls+'">'+fmt(Number(p.valor))+'</span>'+
+      '<span class="restore-x pend-reabrir" title="Reabrir (desfazer baixa deste mês)" data-pid="'+p.id+'">↺</span>'+
+    '</span>'+
+  '</li>';
+}
+
+/** Desenha o quadro comparativo: a receber numa coluna, a pagar na outra. */
 function renderPendentes(){
-  const cont = document.getElementById("pendentesLista");
-  if(!cont) return;
-  const lista = state.pendentes.slice().sort((a,b)=>
+  const listaReceber = document.getElementById("listaReceber");
+  const listaPagar = document.getElementById("listaPagar");
+  if(!listaReceber || !listaPagar) return;
+  const ordena = arr => arr.slice().sort((a,b)=>
     (pendBaixadoNoMes(a)?1:0)-(pendBaixadoNoMes(b)?1:0) || (a.venc_dia||99)-(b.venc_dia||99));
-  // resumo considera só o que ainda está em aberto no mês selecionado
-  let somaIn=0, somaOut=0, abertos=0;
-  state.pendentes.forEach(p=>{
-    if(pendBaixadoNoMes(p)) return;
-    abertos++;
-    if(p.tipo==="entrada") somaIn+=Number(p.valor); else somaOut+=Number(p.valor);
-  });
-  const resumo = document.getElementById("pendResumo");
-  if(resumo) resumo.innerHTML = abertos
-    ? 'A receber: <span style="color:var(--in)">'+fmt(somaIn)+'</span> · A pagar: <span style="color:var(--out)">'+fmt(somaOut)+'</span>'
-    : "";
-  if(!lista.length){ cont.innerHTML = '<div class="rank-empty">Nada em espera.</div>'; return; }
-  let html = '<ul class="pend">';
-  lista.forEach(p=>{
-    const baixado = pendBaixadoNoMes(p);
-    let venc = "";
-    if(p.venc_ano!=null && p.venc_mes!=null && p.venc_dia){
-      venc = '<span class="pend-venc">'+String(p.venc_dia).padStart(2,"0")+"/"+String(p.venc_mes+1).padStart(2,"0")+"/"+p.venc_ano+'</span>';
-    }else if(p.venc_dia){
-      venc = '<span class="pend-venc">previsto dia '+String(p.venc_dia).padStart(2,"0")+'</span>';
-    }
-    const cat = p.categoria ? ' <span class="cat">('+escapeHtml(p.categoria)+')</span>' : "";
-    const badge = p.tipo==="entrada" ? '<span class="pill in">a receber</span>' : '<span class="pill out">a pagar</span>';
-    const mensal = p.recorrente ? '<span class="tag rec">🔁 mensal</span>' : "";
-    const impTag = p.origem==="importado" ? '<span class="tag imp">📥 importado</span>' : "";
-    const okTag = baixado ? '<span class="tag ok">✓ baixado em '+MESES[state.mes]+'</span>' : "";
-    let acoes;
-    if(baixado){
-      acoes = '<span class="restore-x pend-reabrir" title="Reabrir (desfazer baixa deste mês)" data-pid="'+p.id+'">↺</span>';
-    }else{
-      acoes =
-        '<span class="edit-x pend-edit" title="Editar" data-pid="'+p.id+'">✎</span>'+
-        '<button class="btn-primary btn-sm pend-baixa" data-pid="'+p.id+'">Dar baixa</button>'+
-        '<span class="del-x pend-del" title="Remover" data-pid="'+p.id+'">✕</span>';
-    }
-    html += '<li class="'+(baixado?"pend-done":"")+'">'+
-      '<span class="pend-info">'+badge+' <span class="pend-desc">'+escapeHtml(p.descricao||"(sem descrição)")+'</span>'+cat+mensal+impTag+okTag+' '+venc+'</span>'+
-      '<span class="pend-acoes">'+
-        '<span class="pend-val '+(p.tipo==="entrada"?"in":"out")+'">'+fmt(Number(p.valor))+'</span>'+
-        acoes+
-      '</span>'+
-    '</li>';
-  });
-  html += '</ul>';
-  cont.innerHTML = html;
+
+  const montaColuna = (arr, elId, totalId)=>{
+    const el = document.getElementById(elId);
+    const abertos = arr.filter(p=>!pendBaixadoNoMes(p));
+    const totalEl = document.getElementById(totalId);
+    if(totalEl) totalEl.textContent = abertos.length ? "· "+fmt(abertos.reduce((s,p)=>s+Number(p.valor),0)) : "";
+    if(!arr.length){ el.innerHTML = '<div class="rank-empty">Nada por aqui.</div>'; return; }
+    let html = '<ul class="pend">';
+    ordena(arr).forEach(p=>{ html += pendBaixadoNoMes(p) ? pendRowBaixadoHtml(p) : pendRowHtml(p); });
+    html += '</ul>';
+    el.innerHTML = html;
+  };
+  montaColuna(state.pendentes.filter(p=>p.tipo==="entrada"), "listaReceber", "totReceber");
+  montaColuna(state.pendentes.filter(p=>p.tipo==="saida"), "listaPagar", "totPagar");
 }

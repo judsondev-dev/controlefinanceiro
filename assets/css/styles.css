@@ -262,6 +262,17 @@ tr.flash td{animation:flashRow 1.1s ease}
 .pend-inline .amt{opacity:.85}
 .pend-lancar{padding:3px 10px;font-size:12px}
 
+/* Quadro comparativo: a receber / a pagar lado a lado */
+.pend-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:4px}
+.pend-col-titulo{font-size:13px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:6px;
+  padding-bottom:8px;border-bottom:2px solid var(--border)}
+.pend-col-titulo.pos{color:var(--in)}
+.pend-col-titulo.neg{color:var(--out)}
+.pend-col-total{font-weight:700;font-size:12.5px;color:var(--muted)}
+.pend-data-baixa{width:auto;min-width:126px;padding:5px 6px;font-size:12px}
+.pend-confirmar{padding:4px 10px;font-size:13px;line-height:1}
+@media(max-width:760px){ .pend-grid{grid-template-columns:1fr;gap:8px} }
+
 /* ---------- Modal de categoria ---------- */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(3px);
   display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}

@@ -21,7 +21,6 @@ async function addLancamento(){
   if(ocupado) return; ocupado=true;
   try{
   if(editando){ await salvarEdicao(); return; }
-  if(baixando){ await confirmarBaixa(); return; }
   if(editandoPend){ await salvarEdicaoPendente(); return; }
   const tipo=document.getElementById("tipo").value;
   const dia=parseInt(document.getElementById("dia").value,10);
@@ -289,57 +288,6 @@ async function restaurarRecorrente(id){
 
 /* ---------- Pendentes (em espera) ---------- */
 
-/**
- * Confirma a baixa aberta no formulário, lançando no mês selecionado.
- * Se "Parcelas" for maior que 1, cria as parcelas nos meses seguintes
- * (mesmo comportamento de um lançamento novo parcelado).
- */
-async function confirmarBaixa(){
-  const tipo=document.getElementById("tipo").value;
-  const dia=parseInt(document.getElementById("dia").value,10);
-  const descricao=document.getElementById("descricao").value.trim();
-  const categoria=document.getElementById("categoria").value.trim();
-  const valor=parseFloat(document.getElementById("valor").value);
-  let parcelas=parseInt(document.getElementById("parcelas").value,10);
-  if(isNaN(parcelas)||parcelas<1) parcelas=1;
-  if(!dia||dia<1||dia>31){ toast("Informe o dia do recebimento/pagamento (1 a 31).", "erro"); return; }
-  if(isNaN(valor)||valor<=0){ toast("Informe um valor maior que zero.", "erro"); return; }
-  const {id} = baixando;
-  const pend = state.pendentes.find(x=>x.id===id);
-  const origem = document.getElementById("marcarImportado").checked?"importado":"manual";
-  try{
-    let data;
-    if(parcelas>1){
-      const grupo = (crypto.randomUUID? crypto.randomUUID() : String(Date.now()));
-      const rows=[];
-      for(let i=0;i<parcelas;i++){
-        const alvo=new Date(state.ano, state.mes+i, 1);
-        const ano=alvo.getFullYear(), mes=alvo.getMonth();
-        const diaAlvo=Math.min(dia, diasNoMes(ano,mes));
-        rows.push({grupo, ano, mes, dia:diaAlvo, tipo, descricao:(descricao||"(sem descrição)")+" ("+(i+1)+"/"+parcelas+")", categoria, valor, origem});
-      }
-      const r=await db.from("lancamentos").insert(rows).select(); if(r.error) throw r.error;
-      data=r.data;
-    }else{
-      const row={ano:state.ano, mes:state.mes, dia, tipo, descricao, categoria, valor, origem};
-      const r=await db.from("lancamentos").insert(row).select(); if(r.error) throw r.error;
-      data=r.data;
-    }
-    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
-    // Pendente mensal permanece, mas marcado como baixado neste mês (some do mês atual,
-    // reaparece no próximo). Avulso é removido de vez.
-    if(pend && pend.recorrente){
-      const {error:e2}=await db.from("pendentes").update({baixa_ano:state.ano, baixa_mes:state.mes}).eq("id",id); if(e2) throw e2;
-      pend.baixa_ano=state.ano; pend.baixa_mes=state.mes;
-    }else{
-      const {error:e2}=await db.from("pendentes").delete().eq("id",id); if(e2) throw e2;
-      state.pendentes = state.pendentes.filter(x=>x.id!==id);
-    }
-    finalizarEdicao();
-    render();
-  }catch(e){ toast("Erro ao dar baixa: "+(e.message||e), "erro"); }
-}
-
 /** Lança um pendente direto no fluxo, na data original, sem abrir o formulário. */
 async function baixaDireta(id){
   if(!db) return;
@@ -362,6 +310,37 @@ async function baixaDireta(id){
     }
     render();
   }catch(e){ toast("Erro ao lançar: "+(e.message||e), "erro"); carregar(); }
+  finally{ ocupado=false; }
+}
+
+/**
+ * Lança um pendente direto no fluxo numa data escolhida pelo usuário
+ * (quadro "A receber / A pagar") — o recebimento ou pagamento nem
+ * sempre cai na data prevista, então a data vem pré-preenchida mas
+ * pode ser ajustada antes de confirmar.
+ */
+async function baixaComData(id, isoData){
+  if(!db) return;
+  const p = state.pendentes.find(x=>x.id===id);
+  if(!p) return;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoData||"");
+  if(!m){ toast("Informe uma data válida.", "erro"); return; }
+  const ano=parseInt(m[1],10), mes=parseInt(m[2],10)-1, dia=parseInt(m[3],10);
+  if(ocupado) return; ocupado=true;
+  try{
+    const row={ano, mes, dia, tipo:p.tipo, descricao:p.descricao, categoria:p.categoria, valor:p.valor, origem:p.origem||"manual"};
+    const {data,error}=await db.from("lancamentos").insert(row).select(); if(error) throw error;
+    state.lancamentos.push(...data.map(x=>({id:x.id,grupo:x.grupo,ano:x.ano,mes:x.mes,dia:x.dia,tipo:x.tipo,descricao:x.descricao,categoria:x.categoria,valor:Number(x.valor),origem:x.origem||"manual"})));
+    if(p.recorrente){
+      const {error:e2}=await db.from("pendentes").update({baixa_ano:ano, baixa_mes:mes}).eq("id",id); if(e2) throw e2;
+      p.baixa_ano=ano; p.baixa_mes=mes;
+    }else{
+      const {error:e2}=await db.from("pendentes").delete().eq("id",id); if(e2) throw e2;
+      state.pendentes=state.pendentes.filter(x=>x.id!==id);
+    }
+    render();
+    toast("Lançado em "+String(dia).padStart(2,"0")+"/"+String(mes+1).padStart(2,"0")+"/"+ano+".");
+  }catch(e){ toast("Erro ao dar baixa: "+(e.message||e), "erro"); carregar(); }
   finally{ ocupado=false; }
 }
 
