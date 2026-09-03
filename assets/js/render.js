@@ -329,6 +329,25 @@ function pendBaixadoNoMes(p){
   return p.recorrente && p.baixa_ano===state.ano && p.baixa_mes===state.mes;
 }
 
+/**
+ * Um pendente deve aparecer no quadro do mês selecionado? Mensais e
+ * pendentes sem data específica sempre aparecem. Os com data prevista
+ * conhecida (ex.: parcelas) só aparecem no mês previsto ou, se ainda
+ * não foram confirmados, em qualquer mês depois dele (atrasados —
+ * ficam visíveis até serem resolvidos, não somem sozinhos).
+ */
+function pendenteVisivelNoMes(p, ano, mes){
+  if(p.recorrente) return true;
+  if(p.venc_ano==null || p.venc_mes==null) return true;
+  return p.venc_ano<ano || (p.venc_ano===ano && p.venc_mes<=mes);
+}
+
+/** Um pendente com data prevista é de um mês anterior ao selecionado (atrasado)? */
+function pendenteAtrasado(p, ano, mes){
+  if(p.recorrente || p.venc_ano==null || p.venc_mes==null) return false;
+  return p.venc_ano<ano || (p.venc_ano===ano && p.venc_mes<mes);
+}
+
 /** Data prevista de um pendente, em ISO (yyyy-mm-dd), pra pré-preencher a baixa. */
 function dataPrevistaISO(p){
   let ano, mes, dia;
@@ -343,6 +362,7 @@ function pendRowHtml(p){
   const cat = p.categoria ? ' <span class="cat">('+escapeHtml(p.categoria)+')</span>' : "";
   const mensal = p.recorrente ? '<span class="tag rec">🔁 mensal</span>' : "";
   const impTag = p.origem==="importado" ? '<span class="tag imp">📥 importado</span>' : "";
+  const atrTag = pendenteAtrasado(p, state.ano, state.mes) ? '<span class="tag pul">⏰ atrasado</span>' : "";
   let venc = "";
   if(p.venc_ano!=null && p.venc_mes!=null && p.venc_dia){
     venc = '<span class="pend-venc">previsto '+String(p.venc_dia).padStart(2,"0")+"/"+String(p.venc_mes+1).padStart(2,"0")+"/"+p.venc_ano+'</span>';
@@ -351,7 +371,7 @@ function pendRowHtml(p){
   }
   const cls = p.tipo==="entrada" ? "in" : "out";
   return '<li>'+
-    '<span class="pend-info"><span class="pend-desc">'+escapeHtml(p.descricao||"(sem descrição)")+'</span>'+cat+mensal+impTag+' '+venc+'</span>'+
+    '<span class="pend-info"><span class="pend-desc">'+escapeHtml(p.descricao||"(sem descrição)")+'</span>'+cat+mensal+impTag+atrTag+' '+venc+'</span>'+
     '<span class="pend-acoes">'+
       '<span class="pend-val '+cls+'">'+fmt(Number(p.valor))+'</span>'+
       '<input type="date" class="pend-data-baixa" data-pid="'+p.id+'" value="'+dataPrevistaISO(p)+'">'+
@@ -434,6 +454,7 @@ function renderPendentes(){
     html += '</ul>';
     el.innerHTML = html;
   };
-  montaColuna(state.pendentes.filter(p=>p.tipo==="entrada"), recs.filter(r=>r.tipo==="entrada"), "listaReceber", "totReceber");
-  montaColuna(state.pendentes.filter(p=>p.tipo==="saida"), recs.filter(r=>r.tipo==="saida"), "listaPagar", "totPagar");
+  const visiveis = state.pendentes.filter(p=>pendenteVisivelNoMes(p, state.ano, state.mes));
+  montaColuna(visiveis.filter(p=>p.tipo==="entrada"), recs.filter(r=>r.tipo==="entrada"), "listaReceber", "totReceber");
+  montaColuna(visiveis.filter(p=>p.tipo==="saida"), recs.filter(r=>r.tipo==="saida"), "listaPagar", "totPagar");
 }
