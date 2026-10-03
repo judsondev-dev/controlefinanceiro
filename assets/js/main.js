@@ -1,193 +1,84 @@
 /* =====================================================================
-   Inicialização — registra os eventos da página e conecta ao Supabase.
-   Deve ser o ÚLTIMO script carregado.
+   Inicialização, navegação entre telas e redesenho.
    ===================================================================== */
 "use strict";
 
-function init(){
-  // Preenche o seletor de meses
-  const selMes=document.getElementById("mes");
-  MESES.forEach((m,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=m; selMes.appendChild(o); });
-  syncConfigInputs();
+const TELAS = {
+  hoje:     {titulo:"Hoje — o que receber e pagar", mes:true,  render:()=>renderHoje()},
+  agenda:   {titulo:"Agenda do mês",                mes:true,  render:()=>renderAgenda()},
+  contas:   {titulo:"Contas e pessoas",             mes:true,  render:()=>renderContas()},
+  importar: {titulo:"Importar extrato",             mes:false, render:()=>renderImportar()},
+  analises: {titulo:"Análises e projeção",          mes:true,  render:()=>renderAnalises()}
+};
 
-  // Credenciais: do config.js (se existir) ou das salvas no navegador
-  const cfg=getCfg();
-  const embutidaUrl = (typeof SUPA_URL!=="undefined") ? SUPA_URL : "";
-  const embutidaKey = (typeof SUPA_KEY!=="undefined") ? SUPA_KEY : "";
-  const urlInicial = embutidaUrl || cfg.url || "";
-  const keyInicial = embutidaKey || cfg.key || "";
-  if(urlInicial) document.getElementById("supaUrl").value=urlInicial;
-  if(keyInicial) document.getElementById("supaKey").value=keyInicial;
-
-  document.getElementById("btnConectar").addEventListener("click", ()=>{
-    const url=document.getElementById("supaUrl").value.trim();
-    const key=document.getElementById("supaKey").value.trim();
-    if(conectar(url,key)){ mostrarStatus(true); document.getElementById("connPanel").style.display="none"; carregar(); }
-  });
-
-  // Barra fixa (navegação de mês)
-  document.getElementById("tbPrev").addEventListener("click", ()=>mudarMes(-1));
-  document.getElementById("tbNext").addEventListener("click", ()=>mudarMes(1));
-  document.getElementById("tbHoje").addEventListener("click", irHoje);
-  initColapsaveis();
-
-  // Menu lateral (módulos)
-  document.getElementById("sidebarNav").addEventListener("click", e=>{
-    const btn=e.target.closest(".nav-item");
-    if(btn) mostrarModulo(btn.dataset.modulo);
-  });
-  document.getElementById("btnHamburger").addEventListener("click", abrirSidebarMobile);
-  document.getElementById("sidebarOverlay").addEventListener("click", fecharSidebarMobile);
-  const moduloSalvo = localStorage.getItem(MODULO_KEY);
-  if(moduloSalvo && document.getElementById(moduloSalvo)) mostrarModulo(moduloSalvo);
-
-  // Conexão com a internet (não confundir com a conexão ao Supabase)
-  const atualizaConexaoBanner=()=>{
-    const b=document.getElementById("offlineBanner");
-    if(b) b.style.display = navigator.onLine ? "none" : "block";
-  };
-  atualizaConexaoBanner();
-  window.addEventListener("online", ()=>{ atualizaConexaoBanner(); toast("Conexão com a internet restabelecida."); });
-  window.addEventListener("offline", ()=>{ atualizaConexaoBanner(); toast("Você está offline. As próximas ações podem falhar.", "erro"); });
-
-  // Projeção dos próximos meses
-  document.getElementById("projMeses").addEventListener("change", e=>{
-    localStorage.setItem(PROJ_KEY, e.target.value);
-    renderProjecao();
-  });
-  document.getElementById("tbodyProj").addEventListener("click", e=>{
-    const tr=e.target.closest(".proj-row");
-    if(!tr) return;
-    state.ano=parseInt(tr.dataset.ano,10); state.mes=parseInt(tr.dataset.mes,10);
-    syncConfigInputs(); render();
-    mostrarModulo("secResumo");
-  });
-
-  // Avulso, parcelado e fixo — clique num item vai até o dia dele no fluxo
-  ["tpAvulsoLista","tpParceladoLista","tpFixoLista"].forEach(id=>{
-    document.getElementById(id).addEventListener("click", e=>{
-      const li=e.target.closest(".tipos-row");
-      if(li) irParaDiaNoFluxo(parseInt(li.dataset.dia,10));
-    });
-  });
-
-  // Metas e compromissos por categoria
-  document.getElementById("btnSalvarOrc").addEventListener("click", salvarOrcamento);
-  ["orcCategoria","orcLimite"].forEach(id=>{
-    document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter") salvarOrcamento(); });
-  });
-  document.getElementById("orcamentosLista").addEventListener("click", async e=>{
-    const ed=e.target.closest(".orc-edit");
-    if(ed){
-      document.getElementById("orcCategoria").value=decodeURIComponent(ed.dataset.cat);
-      document.getElementById("orcTipo").value=ed.dataset.tipo;
-      document.getElementById("orcLimite").value=ed.dataset.lim;
-      document.getElementById("orcCategoria").focus();
-      return;
-    }
-    const dl=e.target.closest(".orc-del");
-    if(dl){
-      const ok = await confirmDialog({titulo:"Remover orçamento", mensagem:"Remover este orçamento?", textoOk:"Remover", perigo:true});
-      if(ok) removerOrcamento(dl.dataset.id);
-    }
-  });
-
-  // Insights: clique numa categoria abre o modal com os lançamentos
-  ["topReceitas","topDespesas"].forEach(id=>{
-    document.getElementById(id).addEventListener("click", e=>{
-      const li=e.target.closest("li[data-cat]");
-      if(li) abrirCategoria(decodeURIComponent(li.dataset.cat), li.dataset.tipo);
-    });
-  });
-  document.getElementById("catFechar").addEventListener("click", fecharCategoria);
-  document.getElementById("catModal").addEventListener("click", e=>{ if(e.target.id==="catModal") fecharCategoria(); });
-  document.addEventListener("keydown", e=>{ if(e.key==="Escape") fecharCategoria(); });
-  document.getElementById("catLista").addEventListener("click", async e=>{
-    const ed=e.target.closest(".cat-edit");
-    if(ed){ fecharCategoria(); iniciarEdicao(ed.dataset.id, ed.dataset.rec==="true"); return; }
-    const dl=e.target.closest(".cat-del");
-    if(dl){
-      await removerItem(dl.dataset.id, dl.dataset.rec==="true", dl.dataset.grupo||"");
-      if(document.getElementById("catModal").style.display!=="none" && catAtual!=null) abrirCategoria(catAtual, tipoAtual);
-      return;
-    }
-  });
-
-  // Configuração do mês e formulário
-  document.getElementById("btnAplicar").addEventListener("click", aplicarConfig);
-  document.getElementById("btnAdd").addEventListener("click", addLancamento);
-  document.getElementById("btnLimpar").addEventListener("click", limparMes);
-  document.getElementById("btnExport").addEventListener("click", exportar);
-  document.getElementById("saldoInicial").addEventListener("change", salvarSaldoInicial);
-  document.getElementById("mes").addEventListener("change", aplicarConfig);
-  document.getElementById("ano").addEventListener("change", aplicarConfig);
-  ["descricao","categoria","valor","dia"].forEach(id=>{
-    document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter") addLancamento(); });
-  });
-  document.getElementById("btnCancelarEd").addEventListener("click", finalizarEdicao);
-  document.getElementById("fabAdd").addEventListener("click", abrirNovoLancamento);
-
-  // Tabela do fluxo (inclui os pendentes exibidos na linha do dia)
-  document.getElementById("tbody").addEventListener("click", e=>{
-    const pl=e.target.closest(".pend-lancar");
-    if(pl){ baixaDireta(pl.dataset.pid); return; }
-    const pe=e.target.closest(".pend-edit");
-    if(pe){ iniciarEdicaoPendente(pe.dataset.pid); return; }
-    const pr=e.target.closest(".pend-remover");
-    if(pr){ removerPendente(pr.dataset.pid); return; }
-    const ed=e.target.closest(".edit-x");
-    if(ed){ iniciarEdicao(ed.dataset.eid, ed.dataset.erec==="true"); return; }
-    const sk=e.target.closest(".skip-x");
-    if(sk){ pularRecorrente(sk.dataset.rid); return; }
-    const rs=e.target.closest(".restore-x");
-    if(rs){ restaurarRecorrente(rs.dataset.rid); return; }
-    const x=e.target.closest(".del-x");
-    if(x) removerItem(x.dataset.id, x.dataset.rec==="true", x.dataset.grupo||"");
-  });
-
-  // Importação de extrato e quadro comparativo (a receber / a pagar)
-  document.getElementById("btnImportExtrato").addEventListener("click", ()=>document.getElementById("fileExtrato").click());
-  document.getElementById("fileExtrato").addEventListener("change", e=>{ if(e.target.files[0]) importarExtrato(e.target.files[0]); e.target.value=""; });
-  ["listaReceber","listaPagar"].forEach(id=>{
-    document.getElementById(id).addEventListener("click", e=>{
-      const ed=e.target.closest(".pend-edit");
-      if(ed){ iniciarEdicaoPendente(ed.dataset.pid); return; }
-      const rb=e.target.closest(".pend-reabrir");
-      if(rb){ reabrirPendente(rb.dataset.pid); return; }
-      const cf=e.target.closest(".pend-confirmar");
-      if(cf){
-        const dataEl=cf.closest("li").querySelector(".pend-data-baixa");
-        baixaComData(cf.dataset.pid, dataEl?dataEl.value:"");
-        return;
-      }
-      const d=e.target.closest(".pend-del");
-      if(d){ removerPendente(d.dataset.pid); return; }
-      // contas fixas ainda não confirmadas neste mês
-      const rcf=e.target.closest(".rec-confirmar");
-      if(rcf){
-        const dataEl=rcf.closest("li").querySelector(".rec-data-confirmar");
-        confirmarRecorrente(rcf.dataset.rid, dataEl?dataEl.value:"");
-        return;
-      }
-      const rp=e.target.closest(".rec-pular");
-      if(rp){ pularRecorrente(rp.dataset.rid); return; }
-      const rr=e.target.closest(".rec-restaurar");
-      if(rr){ restaurarRecorrente(rr.dataset.rid); return; }
-      const re=e.target.closest(".rec-editar");
-      if(re){ iniciarEdicao(re.dataset.rid, true); return; }
-      const rd=e.target.closest(".rec-remover");
-      if(rd){ removerItem(rd.dataset.rid, true, ""); return; }
-    });
-  });
-
-  // Conecta automaticamente com as credenciais salvas (config.js ou navegador)
-  if(urlInicial && keyInicial){
-    if(conectar(urlInicial,keyInicial)){
-      mostrarStatus(true); carregar();
-      document.getElementById("connPanel").style.display="none"; // já conectado: esconde o painel
-    }
-  }
-  else { mostrarStatus(false); }
+function render(){
+  const tela = TELAS[state.view];
+  document.querySelectorAll(".view").forEach(v=>{ v.hidden = (v.id !== "view"+state.view[0].toUpperCase()+state.view.slice(1)); });
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active", n.dataset.view===state.view));
+  document.getElementById("tbMes").style.visibility = tela.mes ? "visible" : "hidden";
+  document.getElementById("tbPeriodo").textContent = MESES[state.mes]+" / "+state.ano;
+  document.getElementById("tbTitulo").textContent = tela.titulo;
+  tela.render();
+  const n = state.titulos.length;
+  document.getElementById("rodape").textContent = "Controle Financeiro · dados no Supabase · "+n+" título(s), "+state.recorrencias.length+" conta(s) mensal(is)";
 }
 
-init();
+function irPara(view){
+  state.view = view;
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebarOverlay").classList.remove("show");
+  render();
+  window.scrollTo(0,0);
+}
+
+function mudarMes(delta){
+  ({ano:state.ano, mes:state.mes} = somaMeses(state.ano, state.mes, delta));
+  render();
+}
+
+async function iniciar(){
+  const cred = credenciais();
+  if(!cred){ document.getElementById("telaConectar").style.display = "flex"; return; }
+  if(!conectar(cred.url, cred.key, false)) return;
+  try{
+    await carregar();
+    await garantirRecorrencias();
+  }catch(e){
+    const msg = String(e.message||e);
+    toast(/relation .* does not exist|schema cache/i.test(msg)
+      ? "As tabelas novas não existem no Supabase. Rode o sql/v2_schema.sql no SQL Editor."
+      : "Erro ao carregar os dados: "+msg, "erro");
+    return;
+  }
+  document.getElementById("telaConectar").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  document.getElementById("fabNovo").style.display = "flex";
+  render();
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  ligarHoje(); ligarAgenda(); ligarContas(); ligarImportar(); ligarAnalises();
+
+  document.getElementById("nav").addEventListener("click", e=>{ const b = e.target.closest(".nav-item"); if(b) irPara(b.dataset.view); });
+  document.getElementById("mesAnt").addEventListener("click", ()=>mudarMes(-1));
+  document.getElementById("mesProx").addEventListener("click", ()=>mudarMes(1));
+  document.getElementById("mesHoje").addEventListener("click", ()=>{ const d = new Date(); state.ano = d.getFullYear(); state.mes = d.getMonth(); render(); });
+  document.getElementById("fabNovo").addEventListener("click", ()=>abrirForm());
+  document.getElementById("btnHamburger").addEventListener("click", ()=>{
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("sidebarOverlay").classList.toggle("show");
+  });
+  document.getElementById("sidebarOverlay").addEventListener("click", ()=>{
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("sidebarOverlay").classList.remove("show");
+  });
+  document.getElementById("btnConectar").addEventListener("click", ()=>{
+    const url = document.getElementById("cfgUrl").value.trim(), key = document.getElementById("cfgKey").value.trim();
+    if(!url || !key){ toast("Informe a URL e a chave.", "erro"); return; }
+    if(conectar(url, key, true)) iniciar();
+  });
+  const off = ()=>{ document.getElementById("offlineBanner").style.display = navigator.onLine ? "none" : "block"; };
+  window.addEventListener("online", off); window.addEventListener("offline", off); off();
+
+  iniciar();
+});
