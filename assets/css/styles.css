@@ -267,3 +267,8 @@ tr:last-child td{border-bottom:none}
 .mini-mes small{color:var(--muted);font-weight:600} .mini-mes.on{border-color:var(--accent);background:rgba(37,99,235,.08)}
 .mini-mes:hover{background:#e8eef7}
 .alerta-leve{background:var(--warn-soft);border:1px solid rgba(245,158,11,.35);color:#92400e;border-radius:10px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.col-head[role=button]{cursor:pointer;user-select:none}
+.col-head[role=button]:hover{filter:brightness(.97)}
+.col-head h3 small{color:var(--muted);font-weight:600}
+.seta{display:inline-block;width:14px;color:var(--muted);font-size:12px}
+.col.recolhida .col-head{border-bottom:none}

@@ -19,6 +19,7 @@ const state = {
   ano: _hoje.getFullYear(), mes: _hoje.getMonth(),
   view: "hoje",
   pessoa: "",            // filtro da tela "Hoje"
+  recolhido: {receber:false, pagar:false},   // colunas da tela "Hoje" (começam abertas)
   contas: [], recorrencias: [], titulos: [], metas: []
 };
 
