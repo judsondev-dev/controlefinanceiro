@@ -31,8 +31,10 @@
     </div>
     <nav class="sidebar-nav" id="nav" aria-label="Telas">
       <button type="button" class="nav-item active" data-view="hoje">🏠 <span>Hoje</span></button>
+      <button type="button" class="nav-item" data-view="lista">📋 <span>Todas as contas</span></button>
+      <button type="button" class="nav-item" data-view="cartoes">💳 <span>Cartões e faturas</span></button>
       <button type="button" class="nav-item" data-view="agenda">📅 <span>Agenda</span></button>
-      <button type="button" class="nav-item" data-view="contas">🏦 <span>Contas e pessoas</span></button>
+      <button type="button" class="nav-item" data-view="contas">🏦 <span>Saldos e pessoas</span></button>
       <button type="button" class="nav-item" data-view="importar">📥 <span>Importar extrato</span></button>
       <button type="button" class="nav-item" data-view="analises">📊 <span>Análises</span></button>
     </nav>
@@ -53,6 +55,8 @@
 
     <main class="wrap">
       <section class="view" id="viewHoje"></section>
+      <section class="view" id="viewLista" hidden></section>
+      <section class="view" id="viewCartoes" hidden></section>
       <section class="view" id="viewAgenda" hidden></section>
       <section class="view" id="viewContas" hidden></section>
       <section class="view" id="viewImportar" hidden></section>
@@ -76,6 +80,8 @@
 <script src="assets/js/form.js"></script>
 <script src="assets/js/actions.js"></script>
 <script src="assets/js/views-hoje.js"></script>
+<script src="assets/js/views-lista.js"></script>
+<script src="assets/js/views-cartoes.js"></script>
 <script src="assets/js/views-agenda.js"></script>
 <script src="assets/js/views-contas.js"></script>
 <script src="assets/js/views-importar.js"></script>
