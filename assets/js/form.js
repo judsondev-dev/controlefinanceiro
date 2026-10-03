@@ -14,12 +14,13 @@ function opcoesConta(sel){
 }
 const datalist = (id, itens) => '<datalist id="'+id+'">'+itens.map(v=>'<option value="'+escapeHtml(v)+'">').join("")+'</datalist>';
 
-function abrirForm(id){
+function abrirForm(id, pre){
   const t = id ? tituloPorId(id) : null;
+  pre = pre || {};
   const hoje = hojeISO();
   const mesSel = iniMes(state.ano, state.mes);
-  const vencPadrao = t ? t.vencimento : (mesDe(hoje).ano===state.ano && mesDe(hoje).mes===state.mes ? hoje : mesSel);
-  const tipo = t ? t.tipo : (state.view==="hoje" && state.formTipo) || "saida";
+  const vencPadrao = t ? t.vencimento : pre.vencimento || (mesDe(hoje).ano===state.ano && mesDe(hoje).mes===state.mes ? hoje : mesSel);
+  const tipo = t ? t.tipo : (pre.tipo || "saida");
 
   const ov = document.createElement("div");
   ov.className = "modal-overlay";
@@ -34,7 +35,7 @@ function abrirForm(id){
       '<div class="field span2"><label>Descrição</label><input name="descricao" type="text" required value="'+escapeHtml(t?t.descricao:"")+'" placeholder="Ex.: Aluguel, Cliente X..."></div>'+
       '<div class="field"><label id="lblValor">Valor</label><input name="valor" type="number" step="0.01" min="0.01" required value="'+(t?t.valor:"")+'"></div>'+
       '<div class="field"><label>Vencimento</label><input name="vencimento" type="date" required value="'+vencPadrao+'"></div>'+
-      '<div class="field"><label>Conta</label><select name="conta_id">'+opcoesConta(t&&t.conta_id)+'</select></div>'+
+      '<div class="field"><label>Conta</label><select name="conta_id">'+opcoesConta(t ? t.conta_id : pre.conta_id)+'</select></div>'+
       '<div class="field"><label>Pessoa (opcional)</label><input name="pessoa" type="text" list="dlPessoas" value="'+escapeHtml(t&&t.pessoa||"")+'" placeholder="Ex.: Jackeline"></div>'+
       '<div class="field span2"><label>Categoria</label><input name="categoria" type="text" list="dlCats" value="'+escapeHtml(t&&t.categoria||"")+'" placeholder="Ex.: Moradia, Honorários..."></div>'+
       (t ? "" :

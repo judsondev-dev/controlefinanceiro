@@ -22,8 +22,10 @@ Tudo é um **título** — algo a pagar ou a receber:
 ## Telas
 
 - **Hoje** (inicial): saldo real, *A receber × A pagar* do mês lado a lado (com os atrasados em destaque) e baixa direta com **data editável** — nem sempre o pagamento cai no dia previsto. Filtro por pessoa.
+- **Todas as contas**: lista completa de títulos com busca e filtros (situação, a pagar/receber, mensais/parceladas/avulsas, conta, pessoa, período) e botão para incluir uma nova conta.
+- **Cartões e faturas**: a fatura de cada cartão no mês é a **soma das compras e parcelas** lançadas nele; "Pagar fatura" dá baixa em tudo de uma vez, na data do pagamento. Mostra o total por pessoa e as próximas faturas.
 - **Agenda**: o mês dia a dia com o saldo previsto; mostra onde o dinheiro aperta antes de acontecer.
-- **Contas e pessoas**: saldo de cada conta/cartão, **ajuste do saldo real** (para bater com o banco) e quanto cada pessoa deve/tem a receber.
+- **Saldos e pessoas**: saldo de cada conta/cartão, **ajuste do saldo real** (para bater com o banco) e quanto cada pessoa deve/tem a receber.
 - **Importar extrato** (CSV/OFX) com **conciliação**: ignora o que já existe, dá baixa em contas em aberto que combinam, e cria o resto já como pago.
 - **Análises**: projeção de 6/12/24 meses, metas por categoria e ranking do mês.
 
@@ -59,7 +61,7 @@ assets/js/
   recorrencia.js  # geração das contas mensais
   form.js         # formulário de título (novo/editar, parcelas, mensal)
   actions.js      # baixar, reabrir, pular, excluir
-  views-*.js      # telas: hoje, agenda, contas, importar, análises
+  views-*.js      # telas: hoje, lista, cartões, agenda, saldos, importar, análises
   parsers.js      # leitura de CSV/OFX
   dialog.js toast.js
   main.js         # inicialização e navegação

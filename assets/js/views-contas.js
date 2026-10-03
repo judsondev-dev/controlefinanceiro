@@ -24,11 +24,11 @@ function modalForm(titulo, campos, textoOk, onSubmit){
 
 const TIPO_CONTA = {corrente:"Conta corrente", dinheiro:"Dinheiro", cartao:"Cartão de crédito"};
 
-function formConta(id){
+function formConta(id, tipoPadrao){
   const c = id ? contaPorId(id) : null;
   modalForm(c?"Editar conta":"Nova conta",
     '<div class="field span2"><label>Nome</label><input name="nome" type="text" required value="'+escapeHtml(c?c.nome:"")+'" placeholder="Ex.: Inter, Nubank, Carteira"></div>'+
-    '<div class="field"><label>Tipo</label><select name="tipo">'+Object.keys(TIPO_CONTA).map(k=>'<option value="'+k+'"'+(c&&c.tipo===k?" selected":"")+'>'+TIPO_CONTA[k]+'</option>').join("")+'</select></div>'+
+    '<div class="field"><label>Tipo</label><select name="tipo">'+Object.keys(TIPO_CONTA).map(k=>'<option value="'+k+'"'+((c?c.tipo:(tipoPadrao||"corrente"))===k?" selected":"")+'>'+TIPO_CONTA[k]+'</option>').join("")+'</select></div>'+
     '<div class="field"><label>Saldo inicial</label><input name="saldo" type="number" step="0.01" value="'+(c?c.saldo_inicial:0)+'"></div>'+
     '<div class="field span2 inline"><label class="chk"><input name="ativa" type="checkbox"'+(!c||c.ativa?" checked":"")+'> <span>Conta ativa (aparece nas listas)</span></label></div>',
     c?"Salvar":"Criar", f=>{
