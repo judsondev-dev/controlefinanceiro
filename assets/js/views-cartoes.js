@@ -1,15 +1,27 @@
 /* =====================================================================
    Tela "Cartões": a fatura de cada cartão no mês selecionado é a soma
-   das compras/parcelas lançadas nele (pelo mês de vencimento). "Pagar
-   fatura" dá baixa em tudo de uma vez, na data do pagamento.
+   das compras/parcelas lançadas nele (pelo mês de vencimento) MAIS o que
+   ficou em aberto de meses anteriores (o débito "rola" para o mês
+   seguinte). Dá para pagar a fatura inteira ou só uma parte: o valor é
+   abatido dos itens mais antigos primeiro.
    ===================================================================== */
 "use strict";
 
+const porVenc = (a,b) => a.vencimento<b.vencimento?-1 : a.vencimento>b.vencimento?1 : a.descricao.localeCompare(b.descricao);
+
 function itensFatura(contaId, ano, mes){
   const ini = iniMes(ano,mes), fim = fimMes(ano,mes);
-  return state.titulos.filter(t=>t.conta_id===contaId && t.status!=="cancelado" && t.vencimento>=ini && t.vencimento<=fim)
-    .sort((a,b)=>a.vencimento<b.vencimento?-1:a.vencimento>b.vencimento?1:a.descricao.localeCompare(b.descricao));
+  return state.titulos.filter(t=>t.conta_id===contaId && t.status!=="cancelado" && t.vencimento>=ini && t.vencimento<=fim).sort(porVenc);
 }
+
+/** Em aberto de meses anteriores, que rola para este mês (só do mês atual em diante). */
+function rolado(contaId, ano, mes){
+  const h = mesDe(hojeISO());
+  if(mesIdx(ano,mes) < mesIdx(h.ano,h.mes)) return [];
+  const ini = iniMes(ano,mes);
+  return state.titulos.filter(t=>t.conta_id===contaId && t.status==="aberto" && t.vencimento<ini).sort(porVenc);
+}
+
 const totalFatura = itens => arred(soma(itens, t=>-movimento(t)));   // saídas positivas, créditos abatem
 
 /** Dia de vencimento mais usado no cartão (para sugerir ao lançar uma compra). */
@@ -19,56 +31,75 @@ function diaDoCartao(contaId){
   return top ? +top[0] : 10;
 }
 
-function situacaoFatura(itens){
-  if(!itens.length) return {txt:"sem lançamentos", cls:"vazia"};
-  const ab = itens.filter(t=>t.status==="aberto");
+function situacaoFatura(itens, ant){
+  if(!itens.length && !ant.length) return {txt:"sem lançamentos", cls:"vazia"};
+  const ab = itens.filter(t=>t.status==="aberto").concat(ant);
   if(!ab.length) return {txt:"paga ✓", cls:"paga"};
   const vencida = ab.some(t=>t.vencimento<hojeISO());
-  return {txt: vencida ? "vencida ⏰" : (ab.length<itens.length ? "parcialmente paga" : "em aberto"), cls: vencida ? "vencida" : "aberta"};
+  const pago = itens.some(t=>t.status==="pago");
+  return {txt: vencida ? "vencida ⏰" : (pago ? "parcialmente paga" : "em aberto"), cls: vencida ? "vencida" : "aberta"};
+}
+
+function linhaFatura(t, tagExtra){
+  return '<tr class="l-row" data-id="'+t.id+'"><td class="nowrap">'+dataCurta(t.vencimento)+'</td><td><div class="t-desc">'+escapeHtml(t.descricao)+'</div><div class="t-tags">'+(tagExtra||"")+tagsDe(t)+'</div></td>'+
+    '<td class="num '+(t.tipo==="entrada"?"in":"out")+'">'+(t.tipo==="entrada"?"−":"")+fmt(valorEf(t))+'</td><td>'+ROTULO_STATUS[t.status]+'</td><td><button type="button" class="btn-mais" data-mais>⋯</button></td></tr>';
 }
 
 function renderCartoes(){
   const cartoes = state.contas.filter(c=>c.tipo==="cartao" && c.ativa);
   const {ano, mes} = state;
   const html = cartoes.map(c=>{
-    const itens = itensFatura(c.id, ano, mes), total = totalFatura(itens), sit = situacaoFatura(itens);
-    const abertos = itens.filter(t=>t.status==="aberto"), aPagar = totalFatura(abertos);
-    const porPessoa = {}; itens.forEach(t=>{ const p = t.pessoa || "Meu"; porPessoa[p] = (porPessoa[p]||0) - movimento(t); });
+    const itens = itensFatura(c.id, ano, mes), ant = rolado(c.id, ano, mes), sit = situacaoFatura(itens, ant);
+    const abertos = itens.filter(t=>t.status==="aberto").concat(ant);
+    const total = arred(totalFatura(itens) + totalFatura(ant)), aPagar = totalFatura(abertos), pago = arred(total - aPagar);
+    const porPessoa = {}; itens.concat(ant).forEach(t=>{ const p = t.pessoa || "Meu"; porPessoa[p] = (porPessoa[p]||0) - movimento(t); });
     const prox = [0,1,2,3,4,5].map(i=>{ const m = somaMeses(ano, mes, i), tt = totalFatura(itensFatura(c.id, m.ano, m.mes));
       return '<button type="button" class="mini-mes'+(i===0?" on":"")+'" data-ano="'+m.ano+'" data-mes="'+m.mes+'"><small>'+MESES[m.mes].slice(0,3)+'/'+String(m.ano).slice(2)+'</small><b>'+fmt(tt)+'</b></button>'; }).join("");
     return '<section class="cartao" data-id="'+c.id+'">'+
       '<header class="cartao-cab"><div><div class="cartao-nome">💳 '+escapeHtml(c.nome)+'</div><div class="conta-sub">Fatura de '+MESES[mes]+'/'+ano+'</div></div>'+
         '<div class="cartao-acoes"><button type="button" class="btn-ghost btn-sm" data-act="editar">✎</button><button type="button" class="btn-primary btn-sm" data-act="compra">+ Lançar compra</button></div></header>'+
-      '<div class="cartao-total"><div><div class="cartao-valor">'+fmt(total)+'</div><span class="pill-sit '+sit.cls+'">'+sit.txt+'</span></div>'+
+      '<div class="cartao-total"><div><div class="cartao-valor">'+fmt(total)+'</div><span class="pill-sit '+sit.cls+'">'+sit.txt+'</span>'+
+        (pago>0.004 ? ' <span class="conta-sub">pago '+fmt(pago)+' · falta <b>'+fmt(aPagar)+'</b></span>' : "")+'</div>'+
         (abertos.length ? '<button type="button" class="btn-baixa out" data-act="pagar">✓ Pagar fatura <span>'+fmt(aPagar)+'</span></button>' : "")+'</div>'+
+      (ant.length ? '<div class="alerta-leve">↪ Inclui <b>'+fmt(totalFatura(ant))+'</b> em aberto de meses anteriores (rolou para este mês).</div>' : "")+
       (Object.keys(porPessoa).length>1 || (Object.keys(porPessoa)[0] && Object.keys(porPessoa)[0]!=="Meu") ? '<div class="chips quebra">'+Object.entries(porPessoa).map(([p,v])=>'<span class="chip-info">'+escapeHtml(p)+': <b>'+fmt(v)+'</b></span>').join("")+'</div>' : "")+
-      (itens.length ? '<div class="tabela"><table><tbody>'+itens.map(t=>
-        '<tr class="l-row" data-id="'+t.id+'"><td class="nowrap">'+dataCurta(t.vencimento)+'</td><td><div class="t-desc">'+escapeHtml(t.descricao)+'</div><div class="t-tags">'+tagsDe(t)+'</div></td>'+
-        '<td class="num '+(t.tipo==="entrada"?"in":"out")+'">'+(t.tipo==="entrada"?"−":"")+fmt(valorEf(t))+'</td><td>'+ROTULO_STATUS[t.status]+'</td><td><button type="button" class="btn-mais" data-mais>⋯</button></td></tr>').join("")+'</tbody></table></div>'
+      ((itens.length||ant.length) ? '<div class="tabela"><table><tbody>'+ant.map(t=>linhaFatura(t,'<span class="tag atr">↪ rolado de '+MESES[mesDe(t.vencimento).mes].slice(0,3)+'</span>')).join("")+itens.map(t=>linhaFatura(t)).join("")+'</tbody></table></div>'
         : '<div class="vazio">Nenhuma compra nesta fatura. Use “+ Lançar compra” — parcelas já caem nos meses seguintes.</div>')+
-      '<div class="mini-meses"><span class="chips-l">Próximas faturas:</span>'+prox+'</div>'+
+      '<div class="mini-meses"><span class="chips-l">Próximas faturas (só o que vence em cada mês):</span>'+prox+'</div>'+
     '</section>';
   }).join("");
 
   document.getElementById("viewCartoes").innerHTML =
     '<div class="flex-sp"><h2 class="sec-t">Cartões e faturas</h2><button type="button" class="btn-primary btn-sm" data-act="novo">+ Novo cartão</button></div>'+
     (html || '<div class="vazio">Nenhum cartão cadastrado. Crie um cartão para lançar compras e acompanhar a fatura de cada mês.</div>')+
-    '<p class="dica">A fatura do mês é a soma das compras e parcelas lançadas no cartão com vencimento naquele mês (informe como vencimento a data em que a fatura vence). Se você ainda tem uma conta mensal tipo “Fatura do cartão” com o valor total digitado, apague-a para não contar duas vezes.</p>';
+    '<p class="dica">A fatura do mês é a soma das compras e parcelas com vencimento naquele mês, mais o que ficou em aberto dos meses anteriores. Você pode pagar tudo ou só uma parte: o que não for pago continua em aberto e rola para a fatura do mês seguinte. Se ainda tem uma conta mensal tipo “Fatura do cartão” com o total digitado, apague-a para não contar duas vezes.</p>';
 }
 
 function formPagarFatura(contaId){
-  const c = contaPorId(contaId), abertos = itensFatura(contaId, state.ano, state.mes).filter(t=>t.status==="aberto");
+  const c = contaPorId(contaId);
+  const itens = itensFatura(contaId, state.ano, state.mes), ant = rolado(contaId, state.ano, state.mes);
+  const abertos = ant.concat(itens.filter(t=>t.status==="aberto"));
   const total = totalFatura(abertos);
   modalForm("Pagar fatura — "+c.nome,
-    '<div class="span2 nota">Fatura de '+MESES[state.mes]+'/'+state.ano+': <b>'+fmt(total)+'</b> em '+abertos.length+' lançamento(s).<br>Todos recebem baixa de uma vez, na data abaixo.</div>'+
-    '<div class="field span2"><label>Data do pagamento</label><input name="data" type="date" required value="'+hojeISO()+'"></div>',
-    "Pagar "+fmt(total), f=>{
-      const data = f.data.value; if(!data) return false;
-      const ids = abertos.map(t=>t.id);
+    '<div class="span2 nota">Em aberto: <b>'+fmt(total)+'</b> ('+abertos.length+' lançamento(s)'+(ant.length?", incluindo o que rolou de meses anteriores":"")+').<br>'+
+      'Informe quanto está pagando agora. Se for menos que o total, o valor é abatido dos itens <b>mais antigos primeiro</b> e o restante continua em aberto (rolando para o mês seguinte se não for pago).</div>'+
+    '<div class="field"><label>Valor pago agora</label><input name="valor" type="number" step="0.01" min="0.01" max="'+total+'" required value="'+total+'"></div>'+
+    '<div class="field"><label>Data do pagamento</label><input name="data" type="date" required value="'+hojeISO()+'"></div>',
+    "Pagar", f=>{
+      const v = arred(parseFloat(f.valor.value)), data = f.data.value;
+      if(!(v>0) || !data){ toast("Informe o valor e a data.", "erro"); return false; }
+      if(v > total+0.004){ toast("O valor passa do que está em aberto ("+fmt(total)+").", "erro"); return false; }
+      const tudo = Math.abs(v-total) < 0.005;
       return seguro(async ()=>{
-        for(const id of ids) await baixarTitulo(id, data);
-        toastAcao("Fatura de "+c.nome+" paga em "+dataBR(data)+".", "Desfazer", async ()=>{
-          if(await seguro(async ()=>{ for(const id of ids) await reabrirTitulo(id); }, "Erro ao desfazer")) render();
+        let regs;
+        if(tudo){
+          regs = [];
+          for(const t of abertos){ await baixarTitulo(t.id, data); regs.push({pagoId:t.id, total:true}); }
+        }else{
+          regs = await pagarValorEmTitulos(abertos.filter(t=>t.tipo==="saida"), v, data);
+        }
+        toastAcao(tudo ? "Fatura de "+c.nome+" paga em "+dataBR(data)+"." : "Pago "+fmt(v)+" na fatura de "+c.nome+" — restam "+fmt(arred(total-v))+" em aberto.", "Desfazer", async ()=>{
+          if(await seguro(()=>desfazerPagamentos(regs), "Erro ao desfazer")) render();
         });
       }, "Erro ao pagar a fatura");
     });

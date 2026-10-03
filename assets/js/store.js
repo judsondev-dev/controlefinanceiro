@@ -102,6 +102,43 @@ async function baixarTitulo(id, data, valorPago){
 }
 async function reabrirTitulo(id){ await atualizarTitulos([id], {status:"aberto", pago_em:null, valor_pago:null}); }
 
+/**
+ * Pagamento parcial: a parte paga vira um título pago à parte e o
+ * original continua em aberto só com o que falta. Se o valor cobre tudo,
+ * é uma baixa normal. Retorna o necessário para desfazer.
+ */
+async function pagarParcial(id, valorPago, data){
+  const t = tituloPorId(id), v = arred(valorPago);
+  if(!(v>0)) throw new Error("Informe um valor maior que zero.");
+  if(v > t.valor+0.004) throw new Error("O valor é maior que o que está em aberto ("+fmt(t.valor)+").");
+  if(v >= t.valor-0.004){ await baixarTitulo(id, data, t.valor); return {pagoId:id, total:true}; }
+  const copia = {...t}; delete copia.id; delete copia.created_at;
+  const [pago] = await inserirTitulos([{...copia, valor:v, status:"pago", pago_em:data, valor_pago:v,
+    descricao:t.descricao+" (pagamento parcial)", recorrencia_id:null, competencia:null}]);
+  try{ await atualizarTitulos([id], {valor:arred(t.valor-v)}); }
+  catch(e){ await excluirTitulos([pago.id]); throw e; }
+  return {pagoId:pago.id, restanteId:id, valorOriginal:t.valor};
+}
+
+async function desfazerPagamentos(regs){
+  for(const r of regs.slice().reverse()){
+    if(r.total) await reabrirTitulo(r.pagoId);
+    else { await atualizarTitulos([r.restanteId], {valor:r.valorOriginal}); await excluirTitulos([r.pagoId]); }
+  }
+}
+
+/** Aplica um valor sobre vários títulos em aberto, na ordem dada (o último pode ficar parcial). */
+async function pagarValorEmTitulos(titulos, valor, data){
+  let resto = arred(valor); const regs = [];
+  for(const t of titulos){
+    if(resto <= 0.004) break;
+    const parte = Math.min(resto, t.valor);
+    regs.push(await pagarParcial(t.id, parte, data));
+    resto = arred(resto - parte);
+  }
+  return regs;
+}
+
 const tituloPorId = id => state.titulos.find(t=>t.id===id);
 const contaPorId  = id => state.contas.find(c=>c.id===id);
 

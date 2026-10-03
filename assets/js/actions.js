@@ -32,10 +32,12 @@ async function acaoRestaurar(id, silencioso){
 async function acaoMenu(id){
   const t = tituloPorId(id); if(!t) return;
   const ops = [{label:"✎ Editar", value:"editar", estilo:"primary"}];
+  if(t.status==="aberto") ops.push({label: t.tipo==="entrada" ? "💸 Receber parcialmente…" : "💸 Pagar parcialmente…", value:"parcial", estilo:"ghost"});
   if(t.status==="aberto" && (t.recorrencia_id || t.grupo)) ops.push({label:"⊘ Pular este", value:"pular", estilo:"ghost"});
   ops.push({label:"🗑 Excluir…", value:"excluir", estilo:"danger"}, {label:"Fechar", value:null, estilo:"ghost"});
   const r = await chooseDialog(t.descricao, fmt(valorEf(t))+" · "+(t.status==="pago"?"pago em "+dataBR(t.pago_em):"vence em "+dataBR(t.vencimento)), ops);
   if(r==="editar") abrirForm(id);
+  else if(r==="parcial") formPagarParcial(id);
   else if(r==="pular") acaoPular(id);
   else if(r==="excluir") acaoExcluir(id);
 }
@@ -82,4 +84,25 @@ async function acaoExcluir(id){
       if(await seguro(()=>inserirTitulos([copia]), "Erro ao desfazer")) render();
     });
   }
+}
+
+/** Janela de pagamento/recebimento parcial de um título. */
+function formPagarParcial(id){
+  const t = tituloPorId(id), ent = t.tipo==="entrada";
+  modalForm((ent?"Receber":"Pagar")+" parcialmente — "+t.descricao,
+    '<div class="span2 nota">Em aberto: <b>'+fmt(t.valor)+'</b>. O que você informar vira um lançamento '+(ent?"recebido":"pago")+' na data escolhida; o restante continua em aberto e, se não for resolvido no mês, passa para o mês seguinte.</div>'+
+    '<div class="field"><label>Valor '+(ent?"recebido":"pago")+' agora</label><input name="valor" type="number" step="0.01" min="0.01" max="'+t.valor+'" required></div>'+
+    '<div class="field"><label>Data</label><input name="data" type="date" required value="'+hojeISO()+'"></div>',
+    ent?"Registrar recebimento":"Registrar pagamento", f=>{
+      const v = arred(parseFloat(f.valor.value)), data = f.data.value;
+      if(!(v>0) || !data){ toast("Informe o valor e a data.", "erro"); return false; }
+      if(v > t.valor+0.004){ toast("O valor passa do que está em aberto ("+fmt(t.valor)+").", "erro"); return false; }
+      return seguro(async ()=>{
+        const antes = t.valor;
+        const reg = await pagarParcial(id, v, data);
+        toastAcao(reg.total ? "Quitado: "+fmt(v)+"." : (ent?"Recebido ":"Pago ")+fmt(v)+" — restam "+fmt(arred(antes-v))+" em aberto.", "Desfazer", async ()=>{
+          if(await seguro(()=>desfazerPagamentos([reg]), "Erro ao desfazer")) render();
+        });
+      }, "Erro ao registrar");
+    });
 }
