@@ -45,8 +45,10 @@ function linhaFechada(t){
 }
 
 function coluna(titulo, classe, abertos, totalAberto, vazioMsg, ini){
-  return '<section class="col '+classe+'"><header class="col-head"><h3>'+titulo+'</h3><span class="col-total">'+fmt(totalAberto)+'</span></header>'+
-    (abertos.length ? abertos.map(t=>linhaAberta(t, ini)).join("") : '<div class="vazio">'+vazioMsg+'</div>')+'</section>';
+  const fechada = !!state.recolhido[classe];
+  return '<section class="col '+classe+(fechada?" recolhida":"")+'" data-col="'+classe+'"><header class="col-head" role="button" tabindex="0" aria-expanded="'+!fechada+'" title="'+(fechada?"Mostrar":"Recolher")+'">'+
+      '<h3><span class="seta">'+(fechada?"▸":"▾")+'</span> '+titulo+' <small>('+abertos.length+')</small></h3><span class="col-total">'+fmt(totalAberto)+'</span></header>'+
+    (fechada ? "" : (abertos.length ? abertos.map(t=>linhaAberta(t, ini)).join("") : '<div class="vazio">'+vazioMsg+'</div>'))+'</section>';
 }
 
 function renderHoje(){
@@ -89,8 +91,10 @@ function renderHoje(){
 
 function ligarHoje(){
   const el = document.getElementById("viewHoje");
+  el.addEventListener("keydown", e=>{ const cab = e.target.closest && e.target.closest(".col-head"); if(cab && (e.key==="Enter" || e.key===" ")){ e.preventDefault(); cab.click(); } });
   el.addEventListener("click", e=>{
     const chip = e.target.closest(".chip"); if(chip){ state.pessoa = chip.dataset.pessoa; render(); return; }
+    const cab = e.target.closest(".col-head"); if(cab){ const k = cab.parentElement.dataset.col; state.recolhido[k] = !state.recolhido[k]; render(); return; }
     const row = e.target.closest(".t-row"); if(!row) return;
     const id = row.dataset.id;
     if(e.target.closest(".btn-baixa")) acaoBaixar(id, row.querySelector(".t-data").value);
