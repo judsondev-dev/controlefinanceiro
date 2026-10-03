@@ -18,12 +18,13 @@ Tudo é um **título** — algo a pagar ou a receber:
 - **Saldo previsto** = saldo real + tudo o que está em aberto até uma data.
 - **Contas mensais** (recorrências) geram títulos de verdade para os próximos 14 meses — sem linhas "virtuais".
 - **Parcelas** são títulos independentes de um mesmo grupo (cada uma é paga na sua data).
+- **Pagamento parcial**: no menu ⋯ de qualquer conta, "Pagar/Receber parcialmente" registra a parte paga (com data) e deixa o restante em aberto; o que não for resolvido no mês aparece como atrasado no mês seguinte.
 
 ## Telas
 
 - **Hoje** (inicial): saldo real, *A receber × A pagar* do mês lado a lado (com os atrasados em destaque) e baixa direta com **data editável** — nem sempre o pagamento cai no dia previsto. Filtro por pessoa.
 - **Todas as contas**: lista completa de títulos com busca e filtros (situação, a pagar/receber, mensais/parceladas/avulsas, conta, pessoa, período) e botão para incluir uma nova conta.
-- **Cartões e faturas**: a fatura de cada cartão no mês é a **soma das compras e parcelas** lançadas nele; "Pagar fatura" dá baixa em tudo de uma vez, na data do pagamento. Mostra o total por pessoa e as próximas faturas.
+- **Cartões e faturas**: a fatura de cada cartão no mês é a **soma das compras e parcelas** lançadas nele; "Pagar fatura" aceita o total **ou só uma parte** (abatida dos itens mais antigos primeiro); o que ficar em aberto **rola para a fatura do mês seguinte**. Mostra o total por pessoa e as próximas faturas.
 - **Agenda**: o mês dia a dia com o saldo previsto; mostra onde o dinheiro aperta antes de acontecer.
 - **Saldos e pessoas**: saldo de cada conta/cartão, **ajuste do saldo real** (para bater com o banco) e quanto cada pessoa deve/tem a receber.
 - **Importar extrato** (CSV/OFX) com **conciliação**: ignora o que já existe, dá baixa em contas em aberto que combinam, e cria o resto já como pago.
