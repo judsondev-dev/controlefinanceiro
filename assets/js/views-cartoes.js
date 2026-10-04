@@ -90,18 +90,13 @@ function formPagarFatura(contaId){
       if(!(v>0) || !data){ toast("Informe o valor e a data.", "erro"); return false; }
       if(v > total+0.004){ toast("O valor passa do que está em aberto ("+fmt(total)+").", "erro"); return false; }
       const tudo = Math.abs(v-total) < 0.005;
-      return seguro(async ()=>{
-        let regs;
-        if(tudo){
-          regs = [];
-          for(const t of abertos){ await baixarTitulo(t.id, data); regs.push({pagoId:t.id, total:true}); }
-        }else{
-          regs = await pagarValorEmTitulos(abertos.filter(t=>t.tipo==="saida"), v, data);
-        }
-        toastAcao(tudo ? "Fatura de "+c.nome+" paga em "+dataBR(data)+"." : "Pago "+fmt(v)+" na fatura de "+c.nome+" — restam "+fmt(arred(total-v))+" em aberto.", "Desfazer", async ()=>{
-          if(await seguro(()=>desfazerPagamentos(regs), "Erro ao desfazer")) render();
-        });
-      }, "Erro ao pagar a fatura");
+      let regs;
+      try{
+        if(tudo){ const ids = abertos.map(t=>t.id); baixarVarios(ids, data); regs = ids.map(id=>({pagoId:id, total:true})); }
+        else regs = pagarValorEmTitulos(abertos.filter(t=>t.tipo==="saida"), v, data);
+      }catch(e){ toast(e.message, "erro"); return false; }
+      toastAcao(tudo ? "Fatura de "+c.nome+" paga em "+dataBR(data)+"." : "Pago "+fmt(v)+" na fatura de "+c.nome+" — restam "+fmt(arred(total-v))+" em aberto.", "Desfazer", ()=>{ desfazerPagamentos(regs); render(); });
+      return true;
     });
 }
 

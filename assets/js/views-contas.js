@@ -18,7 +18,7 @@ function modalForm(titulo, campos, textoOk, onSubmit){
   document.addEventListener("keydown", onKey);
   ov.addEventListener("mousedown", e=>{ if(e.target===ov) fechar(); });
   ov.querySelectorAll("[data-x]").forEach(b=>b.addEventListener("click", fechar));
-  f.addEventListener("submit", async e=>{ e.preventDefault(); if(await onSubmit(f)){ fechar(); render(); } });
+  f.addEventListener("submit", async e=>{ e.preventDefault(); if(await onSubmit(f)){ fechar(); render(); salvarCache(); } });
   setTimeout(()=>{ const p = f.querySelector("input,select"); if(p) p.focus(); }, 30);
 }
 

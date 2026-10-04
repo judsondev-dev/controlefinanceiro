@@ -7,10 +7,16 @@
      cancelado → pulado; não conta e não é gerado de novo
    Saldo real     = saldo inicial das contas + títulos pagos
    Saldo previsto = saldo real + títulos abertos até uma data
+
+   Desempenho: as alterações são aplicadas na hora no estado local (a tela
+   responde sem esperar a rede) e gravadas no Supabase em segundo plano,
+   numa fila que preserva a ordem; se a gravação falhar, a alteração é
+   desfeita e um aviso aparece. Os dados também ficam em cache no
+   navegador para a próxima abertura ser instantânea.
    ===================================================================== */
 "use strict";
 
-const CFG_KEY = "cf2_cfg";
+const CFG_KEY = "cf2_cfg", CACHE_KEY = "cf2_cache";
 let db = null;
 let ocupado = false;
 
@@ -57,16 +63,51 @@ const num = v => (v==null ? null : Number(v));
 const normTitulo = x => ({...x, valor:Number(x.valor), valor_pago:num(x.valor_pago)});
 const normConta  = x => ({...x, saldo_inicial:Number(x.saldo_inicial)});
 const normRec    = x => ({...x, valor:Number(x.valor)});
+const normMeta   = x => ({...x, limite:Number(x.limite)});
 
-async function carregar(){
+async function buscarTudo(){
   const [c, r, t, m] = await Promise.all([lerTudo("contas"), lerTudo("recorrencias"), lerTudo("titulos"), lerTudo("orcamentos")]);
-  state.contas = c.map(normConta);
-  state.recorrencias = r.map(normRec);
-  state.titulos = t.map(normTitulo);
-  state.metas = m.map(x=>({...x, limite:Number(x.limite)}));
+  return {contas:c.map(normConta), recorrencias:r.map(normRec), titulos:t.map(normTitulo), metas:m.map(normMeta)};
+}
+function aplicarDados(d){ state.contas = d.contas; state.recorrencias = d.recorrencias; state.titulos = d.titulos; state.metas = d.metas; }
+async function carregar(){ aplicarDados(await buscarTudo()); salvarCache(); }
+
+/* ---------------- cache no navegador (abertura instantânea) ---------------- */
+let cacheTimer = null;
+function salvarCache(){
+  clearTimeout(cacheTimer);
+  cacheTimer = setTimeout(()=>{
+    const cred = credenciais(); if(!cred) return;
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify({v:1, url:cred.url, contas:state.contas, recorrencias:state.recorrencias, titulos:state.titulos, metas:state.metas})); }catch(e){}
+  }, 400);
+}
+function lerCache(){
+  try{
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY)), cred = credenciais();
+    if(c && c.v===1 && cred && c.url===cred.url && Array.isArray(c.titulos)) return c;
+  }catch(e){}
+  return null;
 }
 
-/** Executa uma gravação com trava anti-duplo-clique e aviso de erro. */
+/* ---------------- fila de gravação em segundo plano ---------------- */
+let fila = Promise.resolve(), pendentes = 0;
+const gravando = () => pendentes > 0;
+
+function sinalizar(){ const el = document.getElementById("sync"); if(el) el.hidden = pendentes===0; }
+
+/** Enfileira uma gravação. Se falhar: desfaz a alteração local e avisa. */
+function persistir(fn, reverter, msgErro){
+  pendentes++; sinalizar();
+  fila = fila.then(fn).catch(e=>{
+    try{ if(reverter) reverter(); }catch(_){}
+    toast((msgErro||"Erro ao salvar")+": "+(e.message||e)+" — a alteração foi desfeita.", "erro");
+    if(typeof render==="function") render();
+  }).finally(()=>{ pendentes--; sinalizar(); salvarCache(); });
+}
+
+window.addEventListener("beforeunload", e=>{ if(pendentes>0){ e.preventDefault(); e.returnValue = ""; } });
+
+/** Executa uma gravação com trava anti-duplo-clique e aviso de erro (para formulários raros). */
 async function seguro(fn, msgErro){
   if(ocupado) return false;
   ocupado = true;
@@ -75,68 +116,114 @@ async function seguro(fn, msgErro){
   finally{ ocupado = false; }
 }
 
-/* ---------------- títulos: gravações ---------------- */
-async function inserirTitulos(rows){
-  const {data, error} = await db.from("titulos").insert(rows).select();
-  if(error) throw error;
-  const novos = data.map(normTitulo);
+/* ---------------- títulos: gravações otimistas ---------------- */
+const COLS_TITULO = ["id","tipo","descricao","categoria","pessoa","conta_id","valor","vencimento","status","pago_em","valor_pago","grupo","parcela","parcelas","recorrencia_id","competencia","origem"];
+function linhaTitulo(r){
+  const o = {}; COLS_TITULO.forEach(c=>{ o[c] = r[c]===undefined ? null : r[c]; });
+  o.status = o.status || "aberto"; o.origem = o.origem || "manual"; o.valor = Number(o.valor);
+  return o;
+}
+
+async function enviarEmLotes(tabela, rows, opcoes){
+  for(let i=0;i<rows.length;i+=200){
+    const lote = rows.slice(i,i+200);
+    const {error} = await (opcoes ? db.from(tabela).upsert(lote, opcoes) : db.from(tabela).insert(lote));
+    if(error) throw error;
+  }
+}
+
+/** Aplica o patch no estado local e devolve a função que o desfaz. */
+function patchLocal(ids, patch){
+  const antes = [];
+  state.titulos.forEach(t=>{
+    if(ids.includes(t.id)){
+      const o = {}; Object.keys(patch).forEach(k=>{ o[k] = t[k]; });
+      antes.push([t, o]); Object.assign(t, patch);
+    }
+  });
+  return ()=>antes.forEach(([t,o])=>Object.assign(t,o));
+}
+
+function atualizarTitulosOtimista(ids, patch, msg){
+  if(!ids.length) return;
+  const rev = patchLocal(ids, patch);
+  persistir(async()=>{ const {error} = await db.from("titulos").update(patch).in("id", ids); if(error) throw error; }, rev, msg);
+}
+
+function excluirTitulosOtimista(ids, msg){
+  const removidos = state.titulos.filter(t=>ids.includes(t.id));
+  state.titulos = state.titulos.filter(t=>!ids.includes(t.id));
+  persistir(async()=>{ const {error} = await db.from("titulos").delete().in("id", ids); if(error) throw error; },
+    ()=>{ state.titulos.push(...removidos); }, msg);
+}
+
+/** Insere já no estado local (com id gerado aqui) e grava depois. Devolve os títulos criados. */
+function inserirTitulosOtimista(rows, msg){
+  const novos = rows.map(r=>({...linhaTitulo({...r, id:uuid()}), created_at:new Date().toISOString()}));
   state.titulos.push(...novos);
+  const ids = novos.map(n=>n.id);
+  persistir(()=>enviarEmLotes("titulos", novos.map(n=>linhaTitulo(n))),
+    ()=>{ state.titulos = state.titulos.filter(t=>!ids.includes(t.id)); }, msg);
   return novos;
 }
 
-async function atualizarTitulos(ids, patch){
-  const {error} = await db.from("titulos").update(patch).in("id", ids);
-  if(error) throw error;
-  state.titulos.forEach(t=>{ if(ids.includes(t.id)) Object.assign(t, patch); });
-}
-
-async function excluirTitulos(ids){
-  const {error} = await db.from("titulos").delete().in("id", ids);
-  if(error) throw error;
-  state.titulos = state.titulos.filter(t=>!ids.includes(t.id));
-}
-
 /** Dá baixa: o título passa a contar no saldo real, na data informada. */
-async function baixarTitulo(id, data, valorPago){
+function baixarTitulo(id, data, valorPago, msg){
   const t = tituloPorId(id);
-  await atualizarTitulos([id], {status:"pago", pago_em:data, valor_pago: valorPago!=null ? valorPago : t.valor});
+  atualizarTitulosOtimista([id], {status:"pago", pago_em:data, valor_pago: valorPago!=null ? valorPago : t.valor}, msg||"Erro ao dar baixa");
 }
-async function reabrirTitulo(id){ await atualizarTitulos([id], {status:"aberto", pago_em:null, valor_pago:null}); }
+/** Baixa vários de uma vez (uma única gravação). valor_pago nulo = pagou o valor previsto. */
+function baixarVarios(ids, data, msg){ atualizarTitulosOtimista(ids, {status:"pago", pago_em:data, valor_pago:null}, msg||"Erro ao dar baixa"); }
+function reabrirTitulo(id, msg){ atualizarTitulosOtimista([id], {status:"aberto", pago_em:null, valor_pago:null}, msg||"Erro ao reabrir"); }
 
 /**
  * Pagamento parcial: a parte paga vira um título pago à parte e o
  * original continua em aberto só com o que falta. Se o valor cobre tudo,
  * é uma baixa normal. Retorna o necessário para desfazer.
  */
-async function pagarParcial(id, valorPago, data){
+function pagarParcial(id, valorPago, data){
   const t = tituloPorId(id), v = arred(valorPago);
   if(!(v>0)) throw new Error("Informe um valor maior que zero.");
   if(v > t.valor+0.004) throw new Error("O valor é maior que o que está em aberto ("+fmt(t.valor)+").");
-  if(v >= t.valor-0.004){ await baixarTitulo(id, data, t.valor); return {pagoId:id, total:true}; }
-  const copia = {...t}; delete copia.id; delete copia.created_at;
-  const [pago] = await inserirTitulos([{...copia, valor:v, status:"pago", pago_em:data, valor_pago:v,
-    descricao:t.descricao+" (pagamento parcial)", recorrencia_id:null, competencia:null}]);
-  try{ await atualizarTitulos([id], {valor:arred(t.valor-v)}); }
-  catch(e){ await excluirTitulos([pago.id]); throw e; }
-  return {pagoId:pago.id, restanteId:id, valorOriginal:t.valor};
+  if(v >= t.valor-0.004){ baixarTitulo(id, data, t.valor); return {pagoId:id, total:true}; }
+
+  const antes = t.valor, resto = arred(t.valor-v);
+  const copia = {...t}; delete copia.created_at;
+  const pago = {...linhaTitulo({...copia, id:uuid(), valor:v, status:"pago", pago_em:data, valor_pago:v,
+    descricao:t.descricao+" (pagamento parcial)", recorrencia_id:null, competencia:null}), created_at:new Date().toISOString()};
+  state.titulos.push(pago); t.valor = resto;
+  persistir(async()=>{
+    await enviarEmLotes("titulos", [linhaTitulo(pago)]);
+    const {error} = await db.from("titulos").update({valor:resto}).eq("id", id);
+    if(error){ await db.from("titulos").delete().eq("id", pago.id); throw error; }
+  }, ()=>{ state.titulos = state.titulos.filter(x=>x.id!==pago.id); t.valor = antes; }, "Erro ao registrar o pagamento parcial");
+  return {pagoId:pago.id, restanteId:id, valorOriginal:antes};
 }
 
-async function desfazerPagamentos(regs){
-  for(const r of regs.slice().reverse()){
-    if(r.total) await reabrirTitulo(r.pagoId);
-    else { await atualizarTitulos([r.restanteId], {valor:r.valorOriginal}); await excluirTitulos([r.pagoId]); }
-  }
+function desfazerPagamentos(regs){
+  const totais = regs.filter(r=>r.total).map(r=>r.pagoId);
+  if(totais.length) atualizarTitulosOtimista(totais, {status:"aberto", pago_em:null, valor_pago:null}, "Erro ao desfazer");
+  regs.filter(r=>!r.total).forEach(r=>{
+    const t = tituloPorId(r.restanteId), pago = tituloPorId(r.pagoId); if(!t || !pago) return;
+    const antes = t.valor; t.valor = r.valorOriginal;
+    state.titulos = state.titulos.filter(x=>x.id!==r.pagoId);
+    persistir(async()=>{
+      let e = (await db.from("titulos").update({valor:r.valorOriginal}).eq("id", r.restanteId)).error; if(e) throw e;
+      e = (await db.from("titulos").delete().eq("id", r.pagoId)).error; if(e) throw e;
+    }, ()=>{ t.valor = antes; state.titulos.push(pago); }, "Erro ao desfazer");
+  });
 }
 
 /** Aplica um valor sobre vários títulos em aberto, na ordem dada (o último pode ficar parcial). */
-async function pagarValorEmTitulos(titulos, valor, data){
-  let resto = arred(valor); const regs = [];
+function pagarValorEmTitulos(titulos, valor, data){
+  let resto = arred(valor); const inteiros = [], regs = []; let parcial = null;
   for(const t of titulos){
     if(resto <= 0.004) break;
-    const parte = Math.min(resto, t.valor);
-    regs.push(await pagarParcial(t.id, parte, data));
-    resto = arred(resto - parte);
+    if(t.valor <= resto+0.004){ inteiros.push(t.id); resto = arred(resto - t.valor); }
+    else{ parcial = {id:t.id, valor:resto}; resto = 0; }
   }
+  if(inteiros.length){ baixarVarios(inteiros, data); inteiros.forEach(id=>regs.push({pagoId:id, total:true})); }
+  if(parcial) regs.push(pagarParcial(parcial.id, parcial.valor, data));
   return regs;
 }
 
