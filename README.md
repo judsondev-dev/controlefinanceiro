@@ -20,6 +20,13 @@ Tudo é um **título** — algo a pagar ou a receber:
 - **Parcelas** são títulos independentes de um mesmo grupo (cada uma é paga na sua data).
 - **Pagamento parcial**: no menu ⋯ de qualquer conta, "Pagar/Receber parcialmente" registra a parte paga (com data) e deixa o restante em aberto; o que não for resolvido no mês aparece como atrasado no mês seguinte.
 
+## Desempenho
+
+- **Abertura instantânea**: os dados ficam em cache no navegador; a tela aparece na hora e é atualizada do Supabase em segundo plano.
+- **Alterações imediatas**: baixar, pular, editar, excluir e pagar (inclusive faturas inteiras) atualizam a tela na hora; a gravação segue numa fila em segundo plano (aparece "⏳ Salvando…" no topo). Se uma gravação falhar, a alteração é desfeita com um aviso.
+- Operações em lote (pagar uma fatura, importar extrato) usam **uma gravação só**, em vez de uma por item.
+- O gráfico (Chart.js) só é baixado quando necessário.
+
 ## Telas
 
 - **Hoje** (inicial): saldo real, *A receber × A pagar* do mês lado a lado (com os atrasados em destaque) e baixa direta com **data editável** — nem sempre o pagamento cai no dia previsto. Filtro por pessoa.

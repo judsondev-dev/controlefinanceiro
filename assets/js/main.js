@@ -15,6 +15,7 @@ const TELAS = {
 
 function render(){
   const tela = TELAS[state.view];
+  if(!render.marcado && state.titulos.length){ render.marcado = true; try{ performance.mark("primeira-tela"); }catch(e){} }
   document.querySelectorAll(".view").forEach(v=>{ v.hidden = (v.id !== "view"+state.view[0].toUpperCase()+state.view.slice(1)); });
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active", n.dataset.view===state.view));
   document.getElementById("tbMes").style.visibility = tela.mes ? "visible" : "hidden";
@@ -38,24 +39,43 @@ function mudarMes(delta){
   render();
 }
 
+function mostrarApp(){
+  document.getElementById("telaConectar").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  document.getElementById("fabNovo").style.display = "flex";
+}
+
+function erroDeCarga(e){
+  const msg = String(e.message||e);
+  toast(/relation .* does not exist|schema cache/i.test(msg)
+    ? "As tabelas novas não existem no Supabase. Rode o sql/v2_schema.sql no SQL Editor."
+    : "Erro ao carregar os dados: "+msg, "erro");
+}
+
+/** Abre na hora com os dados salvos no navegador e atualiza do banco em segundo plano. */
 async function iniciar(){
   const cred = credenciais();
   if(!cred){ document.getElementById("telaConectar").style.display = "flex"; return; }
   if(!conectar(cred.url, cred.key, false)) return;
-  try{
-    await carregar();
-    await garantirRecorrencias();
-  }catch(e){
-    const msg = String(e.message||e);
-    toast(/relation .* does not exist|schema cache/i.test(msg)
-      ? "As tabelas novas não existem no Supabase. Rode o sql/v2_schema.sql no SQL Editor."
-      : "Erro ao carregar os dados: "+msg, "erro");
-    return;
+  mostrarApp();
+
+  const cache = lerCache();
+  const carregando = document.getElementById("carregando");
+  if(cache){
+    aplicarDados({contas:cache.contas, recorrencias:cache.recorrencias, titulos:cache.titulos, metas:cache.metas});
+    carregando.hidden = true; render();
   }
-  document.getElementById("telaConectar").style.display = "none";
-  document.getElementById("app").style.display = "flex";
-  document.getElementById("fabNovo").style.display = "flex";
-  render();
+  try{
+    const dados = await buscarTudo();
+    if(!gravando()){                       // não sobrescreve alterações ainda em gravação
+      aplicarDados(dados); garantirRecorrencias(); salvarCache();
+    }
+  }catch(e){
+    if(!cache){ carregando.hidden = true; erroDeCarga(e); return; }
+    toast("Sem conexão com o banco — mostrando os últimos dados salvos.", "erro");
+  }
+  carregando.hidden = true; render();
+  setTimeout(()=>{ if(typeof carregarChartJs==="function") carregarChartJs().catch(()=>{}); }, 2500);   // gráfico: baixa depois, sem atrasar a abertura
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{

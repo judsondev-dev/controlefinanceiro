@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Controle Financeiro — Contas a pagar e receber</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<script>try{var c=JSON.parse(localStorage.getItem("cf2_cfg")||"{}");if(c.url){var l=document.createElement("link");l.rel="preconnect";l.href=new URL(c.url).origin;l.crossOrigin="";document.head.appendChild(l);}}catch(e){}</script>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -50,10 +52,12 @@
         <button type="button" class="tb-btn" id="mesProx" title="Próximo mês">›</button>
         <button type="button" class="tb-btn tb-hoje" id="mesHoje">Hoje</button>
       </div>
+      <span class="sync" id="sync" hidden>⏳ Salvando…</span>
       <div class="tb-titulo" id="tbTitulo"></div>
     </header>
 
     <main class="wrap">
+      <div class="carregando" id="carregando">⏳ Carregando seus dados…</div>
       <section class="view" id="viewHoje"></section>
       <section class="view" id="viewLista" hidden></section>
       <section class="view" id="viewCartoes" hidden></section>
@@ -68,24 +72,23 @@
 
 <button type="button" class="fab-add" id="fabNovo" title="Novo título" style="display:none">+</button>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="assets/js/config.js" onerror="void 0"></script>
-<script src="assets/js/utils.js"></script>
-<script src="assets/js/toast.js"></script>
-<script src="assets/js/dialog.js"></script>
-<script src="assets/js/parsers.js"></script>
-<script src="assets/js/store.js"></script>
-<script src="assets/js/recorrencia.js"></script>
-<script src="assets/js/form.js"></script>
-<script src="assets/js/actions.js"></script>
-<script src="assets/js/views-hoje.js"></script>
-<script src="assets/js/views-lista.js"></script>
-<script src="assets/js/views-cartoes.js"></script>
-<script src="assets/js/views-agenda.js"></script>
-<script src="assets/js/views-contas.js"></script>
-<script src="assets/js/views-importar.js"></script>
-<script src="assets/js/views-analises.js"></script>
-<script src="assets/js/main.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="assets/js/config.js" onerror="void 0"></script>
+<script defer src="assets/js/utils.js"></script>
+<script defer src="assets/js/toast.js"></script>
+<script defer src="assets/js/dialog.js"></script>
+<script defer src="assets/js/parsers.js"></script>
+<script defer src="assets/js/store.js"></script>
+<script defer src="assets/js/recorrencia.js"></script>
+<script defer src="assets/js/form.js"></script>
+<script defer src="assets/js/actions.js"></script>
+<script defer src="assets/js/views-hoje.js"></script>
+<script defer src="assets/js/views-lista.js"></script>
+<script defer src="assets/js/views-cartoes.js"></script>
+<script defer src="assets/js/views-agenda.js"></script>
+<script defer src="assets/js/views-contas.js"></script>
+<script defer src="assets/js/views-importar.js"></script>
+<script defer src="assets/js/views-analises.js"></script>
+<script defer src="assets/js/main.js"></script>
 </body>
 </html>

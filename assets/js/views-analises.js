@@ -73,16 +73,29 @@ function renderAnalises(){
   desenharChartProj(linhas);
 }
 
+let chartJsPromessa = null;
+/** O Chart.js só é baixado quando a tela de análises precisa dele. */
+function carregarChartJs(){
+  if(typeof Chart!=="undefined") return Promise.resolve();
+  if(!chartJsPromessa) chartJsPromessa = new Promise((ok, falha)=>{
+    const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/chart.js@4";
+    s.onload = ok; s.onerror = ()=>{ chartJsPromessa = null; falha(new Error("Chart.js")); };
+    document.head.appendChild(s);
+  });
+  return chartJsPromessa;
+}
+
 function desenharChartProj(linhas){
-  if(typeof Chart==="undefined") return;
-  const ctx = document.getElementById("chartProj"); if(!ctx) return;
-  if(chartProj){ chartProj.destroy(); chartProj = null; }
-  const data = linhas.map(l=>l.final), cores = data.map(v=>v<0?"#dc2626":"#2563eb");
-  chartProj = new Chart(ctx, {type:"line",
-    data:{labels:linhas.map(l=>MESES[l.mes].slice(0,3)+"/"+String(l.ano).slice(2)), datasets:[{label:"Saldo final previsto", data, borderColor:"#2563eb", backgroundColor:"rgba(37,99,235,.12)",
-      fill:true, tension:.3, pointRadius:3, pointBackgroundColor:cores, pointBorderColor:cores, borderWidth:2.5}]},
-    options:{responsive:true, maintainAspectRatio:false, animation:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>"Final: "+fmt(c.parsed.y)}}},
-      scales:{y:{ticks:{callback:v=>"R$ "+Number(v).toLocaleString("pt-BR")}, grid:{color:c=>c.tick.value===0?"rgba(220,38,38,.5)":"rgba(30,50,90,.08)"}}, x:{grid:{display:false}}}}});
+  carregarChartJs().then(()=>{
+    const ctx = document.getElementById("chartProj"); if(!ctx || state.view!=="analises") return;
+    if(chartProj){ chartProj.destroy(); chartProj = null; }
+    const data = linhas.map(l=>l.final), cores = data.map(v=>v<0?"#dc2626":"#2563eb");
+    chartProj = new Chart(ctx, {type:"line",
+      data:{labels:linhas.map(l=>MESES[l.mes].slice(0,3)+"/"+String(l.ano).slice(2)), datasets:[{label:"Saldo final previsto", data, borderColor:"#2563eb", backgroundColor:"rgba(37,99,235,.12)",
+        fill:true, tension:.3, pointRadius:3, pointBackgroundColor:cores, pointBorderColor:cores, borderWidth:2.5}]},
+      options:{responsive:true, maintainAspectRatio:false, animation:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>"Final: "+fmt(c.parsed.y)}}},
+        scales:{y:{ticks:{callback:v=>"R$ "+Number(v).toLocaleString("pt-BR")}, grid:{color:c=>c.tick.value===0?"rgba(220,38,38,.5)":"rgba(30,50,90,.08)"}}, x:{grid:{display:false}}}}});
+  }).catch(()=>{ const box = document.querySelector(".chart-box"); if(box) box.innerHTML = '<div class="vazio">Não foi possível carregar o gráfico (sem internet?).</div>'; });
 }
 
 function formMeta(id){

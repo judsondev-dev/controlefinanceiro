@@ -272,3 +272,7 @@ tr:last-child td{border-bottom:none}
 .col-head h3 small{color:var(--muted);font-weight:600}
 .seta{display:inline-block;width:14px;color:var(--muted);font-size:12px}
 .col.recolhida .col-head{border-bottom:none}
+
+/* ---------- Carregamento e gravação ---------- */
+.carregando{text-align:center;color:var(--muted);padding:60px 10px;font-weight:600}
+.sync{font-size:12px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:20px;padding:4px 11px}

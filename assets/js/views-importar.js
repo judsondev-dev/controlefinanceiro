@@ -87,11 +87,18 @@ function ligarImportar(){
     if(e.target.id!=="impConfirmar") return;
     const novos = imp.linhas.filter(l=>l.acao==="criar"), baixas = imp.linhas.filter(l=>l.acao==="baixar");
     if(!await confirmDialog({titulo:"Importar extrato", mensagem:novos.length+" lançamento(s) novo(s) e "+baixas.length+" baixa(s) em contas em aberto.", textoOk:"Importar"})) return;
-    const ok = await seguro(async ()=>{
-      for(const l of baixas) await baixarTitulo(l.alvo, l.data, l.valor);
-      if(novos.length) await inserirTitulos(novos.map(l=>({tipo:l.tipo, descricao:l.descricao, valor:l.valor, vencimento:l.data,
-        status:"pago", pago_em:l.data, valor_pago:l.valor, origem:"importado", conta_id:imp.conta||null})));
-    }, "Erro ao importar");
-    if(ok){ toast("Importação concluída."); imp.bruto = []; imp.linhas = []; render(); }
+    const revs = [], envios = [];
+    baixas.forEach(l=>{
+      const patch = {status:"pago", pago_em:l.data, valor_pago:l.valor};
+      revs.push(patchLocal([l.alvo], patch));
+      envios.push(()=>db.from("titulos").update(patch).eq("id", l.alvo));
+    });
+    if(envios.length) persistir(async()=>{
+      const res = await Promise.all(envios.map(f=>f()));
+      const falha = res.find(x=>x.error); if(falha) throw falha.error;
+    }, ()=>revs.forEach(f=>f()), "Erro ao importar as baixas");
+    if(novos.length) inserirTitulosOtimista(novos.map(l=>({tipo:l.tipo, descricao:l.descricao, valor:l.valor, vencimento:l.data,
+      status:"pago", pago_em:l.data, valor_pago:l.valor, origem:"importado", conta_id:imp.conta||null})), "Erro ao importar");
+    toast("Importação concluída."); imp.bruto = []; imp.linhas = []; render();
   });
 }

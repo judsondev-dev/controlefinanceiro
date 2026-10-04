@@ -1,34 +1,37 @@
 /* =====================================================================
-   Ações sobre títulos: baixar, reabrir, pular, restaurar, excluir.
+   Ações sobre títulos: baixar, reabrir, pular, restaurar, excluir e
+   pagamento parcial. A tela atualiza na hora; a gravação vai para a
+   fila em segundo plano (ver store.js).
    ===================================================================== */
 "use strict";
 
-async function acaoBaixar(id, data){
+function acaoBaixar(id, data){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(data||"")){ toast("Informe uma data válida.", "erro"); return; }
-  const t = tituloPorId(id);
-  const ok = await seguro(()=>baixarTitulo(id, data), "Erro ao dar baixa");
-  if(ok){
-    render();
-    toastAcao((t.tipo==="entrada"?"Recebido":"Pago")+" em "+dataBR(data)+".", "Desfazer", ()=>acaoReabrir(id, true));
-  }
+  const t = tituloPorId(id); if(!t || t.status!=="aberto") return;
+  baixarTitulo(id, data);
+  render();
+  toastAcao((t.tipo==="entrada"?"Recebido":"Pago")+" em "+dataBR(data)+".", "Desfazer", ()=>acaoReabrir(id, true));
 }
 
-async function acaoReabrir(id, silencioso){
-  const ok = await seguro(()=>reabrirTitulo(id), "Erro ao reabrir");
-  if(ok){ render(); if(!silencioso) toast("Voltou para em aberto."); }
+function acaoReabrir(id, silencioso){
+  const t = tituloPorId(id); if(!t || t.status!=="pago") return;
+  reabrirTitulo(id); render();
+  if(!silencioso) toast("Voltou para em aberto.");
 }
 
-async function acaoPular(id){
-  const ok = await seguro(()=>atualizarTitulos([id], {status:"cancelado"}), "Erro ao pular");
-  if(ok){ render(); toastAcao("Pulado — não entra no saldo.", "Desfazer", ()=>acaoRestaurar(id, true)); }
+function acaoPular(id){
+  const t = tituloPorId(id); if(!t || t.status!=="aberto") return;
+  atualizarTitulosOtimista([id], {status:"cancelado"}, "Erro ao pular"); render();
+  toastAcao("Pulado — não entra no saldo.", "Desfazer", ()=>acaoRestaurar(id, true));
 }
 
-async function acaoRestaurar(id, silencioso){
-  const ok = await seguro(()=>atualizarTitulos([id], {status:"aberto"}), "Erro ao restaurar");
-  if(ok){ render(); if(!silencioso) toast("Voltou para em aberto."); }
+function acaoRestaurar(id, silencioso){
+  const t = tituloPorId(id); if(!t || t.status!=="cancelado") return;
+  atualizarTitulosOtimista([id], {status:"aberto"}, "Erro ao restaurar"); render();
+  if(!silencioso) toast("Voltou para em aberto.");
 }
 
-/** Menu "⋯" de um título: editar, pular ou excluir. */
+/** Menu "⋯" de um título: editar, pagar parcialmente, pular ou excluir. */
 async function acaoMenu(id){
   const t = tituloPorId(id); if(!t) return;
   const ops = [{label:"✎ Editar", value:"editar", estilo:"primary"}];
@@ -52,13 +55,12 @@ async function acaoExcluir(id){
       {label:"Cancelar", value:null, estilo:"ghost"}]);
     if(r==="pular") return acaoPular(id);
     if(r!=="encerrar") return;
-    const ok = await seguro(async ()=>{
-      const ids = state.titulos.filter(x=>x.recorrencia_id===t.recorrencia_id && x.status==="aberto" && x.competencia>=t.competencia).map(x=>x.id);
-      await excluirTitulos(ids);
-      const ant = somaMeses(partes(t.competencia).ano, partes(t.competencia).mes, -1);
-      await atualizarRecorrencia(t.recorrencia_id, {ativa:false, fim:fimMes(ant.ano, ant.mes)});
-    }, "Erro ao encerrar");
-    if(ok){ render(); toast("Conta mensal encerrada."); }
+    const ids = state.titulos.filter(x=>x.recorrencia_id===t.recorrencia_id && x.status==="aberto" && x.competencia>=t.competencia).map(x=>x.id);
+    const ant = somaMeses(partes(t.competencia).ano, partes(t.competencia).mes, -1);
+    excluirTitulosOtimista(ids, "Erro ao encerrar");
+    const rec = atualizarRecorrenciaLocal(t.recorrencia_id, {ativa:false, fim:fimMes(ant.ano, ant.mes)});
+    persistir(rec.gravar, rec.reverter, "Erro ao encerrar a conta mensal");
+    render(); toast("Conta mensal encerrada.");
     return;
   }
 
@@ -70,20 +72,14 @@ async function acaoExcluir(id){
       {label:"Cancelar", value:null, estilo:"ghost"}]);
     if(!r) return;
     const ids = r==="todas" ? restantes.map(x=>x.id) : [id];
-    const ok = await seguro(()=>excluirTitulos(ids), "Erro ao excluir");
-    if(ok){ render(); toast(ids.length+" parcela(s) excluída(s)."); }
+    excluirTitulosOtimista(ids, "Erro ao excluir"); render(); toast(ids.length+" parcela(s) excluída(s).");
     return;
   }
 
   if(t.status==="pago" && !await confirmDialog({titulo:"Excluir lançamento pago", mensagem:"“"+t.descricao+"” já foi baixado e conta no saldo. Excluir mesmo assim?", textoOk:"Excluir", perigo:true})) return;
   const copia = {...t}; delete copia.id; delete copia.created_at;
-  const ok = await seguro(()=>excluirTitulos([id]), "Erro ao excluir");
-  if(ok){
-    render();
-    toastAcao("Excluído.", "Desfazer", async ()=>{
-      if(await seguro(()=>inserirTitulos([copia]), "Erro ao desfazer")) render();
-    });
-  }
+  excluirTitulosOtimista([id], "Erro ao excluir"); render();
+  toastAcao("Excluído.", "Desfazer", ()=>{ inserirTitulosOtimista([copia], "Erro ao desfazer"); render(); });
 }
 
 /** Janela de pagamento/recebimento parcial de um título. */
@@ -96,13 +92,10 @@ function formPagarParcial(id){
     ent?"Registrar recebimento":"Registrar pagamento", f=>{
       const v = arred(parseFloat(f.valor.value)), data = f.data.value;
       if(!(v>0) || !data){ toast("Informe o valor e a data.", "erro"); return false; }
-      if(v > t.valor+0.004){ toast("O valor passa do que está em aberto ("+fmt(t.valor)+").", "erro"); return false; }
-      return seguro(async ()=>{
-        const antes = t.valor;
-        const reg = await pagarParcial(id, v, data);
-        toastAcao(reg.total ? "Quitado: "+fmt(v)+"." : (ent?"Recebido ":"Pago ")+fmt(v)+" — restam "+fmt(arred(antes-v))+" em aberto.", "Desfazer", async ()=>{
-          if(await seguro(()=>desfazerPagamentos([reg]), "Erro ao desfazer")) render();
-        });
-      }, "Erro ao registrar");
+      const antes = t.valor;
+      let reg;
+      try{ reg = pagarParcial(id, v, data); }catch(e){ toast(e.message, "erro"); return false; }
+      toastAcao(reg.total ? "Quitado: "+fmt(v)+"." : (ent?"Recebido ":"Pago ")+fmt(v)+" — restam "+fmt(arred(antes-v))+" em aberto.", "Desfazer", ()=>{ desfazerPagamentos([reg]); render(); });
+      return true;
     });
 }

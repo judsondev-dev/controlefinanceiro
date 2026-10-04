@@ -92,38 +92,34 @@ function lerForm(f){
 }
 
 /* ---------------- novo ---------------- */
-async function salvarNovo(v){
+function salvarNovo(v){
   const base = {tipo:v.tipo, descricao:v.descricao, categoria:v.categoria, pessoa:v.pessoa, conta_id:v.conta_id, valor:v.valor, origem:"manual"};
   const marcaPago = r => v.jaPago ? {...r, status:"pago", pago_em:v.pagoEm||v.vencimento, valor_pago:v.valor} : {...r, status:"aberto"};
-  return seguro(async ()=>{
-    if(v.rep==="mensal"){
-      const p = partes(v.vencimento);
-      const gerados = await criarRecorrencia({tipo:v.tipo, descricao:v.descricao, categoria:v.categoria, pessoa:v.pessoa,
-        conta_id:v.conta_id, valor:v.valor, dia:p.dia, inicio:v.vencimento});
-      if(v.jaPago){
-        const comp = iniMes(p.ano, p.mes);
-        const t0 = gerados.find(t=>t.competencia===comp);
-        if(t0) await baixarTitulo(t0.id, v.pagoEm||v.vencimento, v.valor);
-        else{
-          const r = state.recorrencias[state.recorrencias.length-1];
-          await inserirTitulos([marcaPago({...tituloDaRecorrencia(r, p.ano, p.mes), vencimento:v.vencimento})]);
-        }
-      }
-      toast("Conta mensal criada — os próximos meses já estão gerados.");
-    }else if(v.rep==="parcelado"){
-      const p = partes(v.vencimento), grupo = uuid();
-      const rows = [];
-      for(let i=0;i<v.parcelas;i++){
-        const r = {...base, vencimento:iso(p.ano, p.mes+i, p.dia), grupo, parcela:i+1, parcelas:v.parcelas};
-        rows.push(i===0 ? marcaPago(r) : {...r, status:"aberto"});
-      }
-      await inserirTitulos(rows);
-      toast(v.parcelas+" parcelas criadas — cada uma é paga separadamente.");
-    }else{
-      await inserirTitulos([marcaPago({...base, vencimento:v.vencimento})]);
-      toast(v.jaPago ? "Lançado como "+(v.tipo==="entrada"?"recebido":"pago")+"." : "Título adicionado.");
+  if(v.rep==="mensal"){
+    const p = partes(v.vencimento);
+    const {rec, titulos} = criarRecorrencia({tipo:v.tipo, descricao:v.descricao, categoria:v.categoria, pessoa:v.pessoa,
+      conta_id:v.conta_id, valor:v.valor, dia:p.dia, inicio:v.vencimento});
+    if(v.jaPago){
+      const comp = iniMes(p.ano, p.mes);
+      const t0 = titulos.find(t=>t.competencia===comp);
+      if(t0) baixarTitulo(t0.id, v.pagoEm||v.vencimento, v.valor);
+      else inserirTitulosOtimista([marcaPago({...tituloDaRecorrencia(rec, p.ano, p.mes), vencimento:v.vencimento})], "Erro ao salvar");
     }
-  }, "Erro ao salvar");
+    toast("Conta mensal criada — os próximos meses já estão gerados.");
+  }else if(v.rep==="parcelado"){
+    const p = partes(v.vencimento), grupo = uuid();
+    const rows = [];
+    for(let i=0;i<v.parcelas;i++){
+      const r = {...base, vencimento:iso(p.ano, p.mes+i, p.dia), grupo, parcela:i+1, parcelas:v.parcelas};
+      rows.push(i===0 ? marcaPago(r) : {...r, status:"aberto"});
+    }
+    inserirTitulosOtimista(rows, "Erro ao salvar");
+    toast(v.parcelas+" parcelas criadas — cada uma é paga separadamente.");
+  }else{
+    inserirTitulosOtimista([marcaPago({...base, vencimento:v.vencimento})], "Erro ao salvar");
+    toast(v.jaPago ? "Lançado como "+(v.tipo==="entrada"?"recebido":"pago")+"." : "Título adicionado.");
+  }
+  return true;
 }
 
 /* ---------------- edição ---------------- */
@@ -143,21 +139,27 @@ async function salvarEdicao(t, v){
       [{label:"Este e os próximos", value:"proximos", estilo:"primary"}, {label:"Só este", value:"este", estilo:"ghost"}, {label:"Cancelar", value:null, estilo:"ghost"}]);
     if(!escopo) return false;
   }
-  return seguro(async ()=>{
-    await atualizarTitulos([t.id], proprio);
-    if(escopo==="proximos" && serie){
-      const r = state.recorrencias.find(x=>x.id===t.recorrencia_id);
-      const novoDia = partes(v.vencimento).dia;
-      await atualizarRecorrencia(r.id, {...comuns, dia:novoDia});
-      const seguintes = state.titulos.filter(x=>x.recorrencia_id===r.id && x.status==="aberto" && x.id!==t.id && x.competencia>t.competencia);
-      for(const x of seguintes){
-        const pc = partes(x.competencia);
-        await atualizarTitulos([x.id], {...comuns, vencimento:iso(pc.ano, pc.mes, novoDia)});
-      }
-    }else if(escopo==="proximos" && parcelasGrupo){
-      const ids = state.titulos.filter(x=>x.grupo===t.grupo && x.status==="aberto" && x.id!==t.id && x.parcela>t.parcela).map(x=>x.id);
-      if(ids.length) await atualizarTitulos(ids, comuns);
-    }
-    toast("Alterações salvas.");
-  }, "Erro ao salvar");
+  atualizarTitulosOtimista([t.id], proprio, "Erro ao salvar");
+  if(escopo==="proximos" && serie){
+    const r = state.recorrencias.find(x=>x.id===t.recorrencia_id);
+    const novoDia = partes(v.vencimento).dia;
+    const rec = atualizarRecorrenciaLocal(r.id, {...comuns, dia:novoDia});
+    const seguintes = state.titulos.filter(x=>x.recorrencia_id===r.id && x.status==="aberto" && x.id!==t.id && x.competencia>t.competencia);
+    const revs = [], envios = [];
+    seguintes.forEach(x=>{
+      const pc = partes(x.competencia), patch = {...comuns, vencimento:iso(pc.ano, pc.mes, novoDia)};
+      revs.push(patchLocal([x.id], patch));
+      envios.push(()=>db.from("titulos").update(patch).eq("id", x.id));
+    });
+    persistir(async()=>{
+      await rec.gravar();
+      const res = await Promise.all(envios.map(f=>f()));
+      const falha = res.find(x=>x.error); if(falha) throw falha.error;
+    }, ()=>{ rec.reverter(); revs.forEach(f=>f()); }, "Erro ao salvar");
+  }else if(escopo==="proximos" && parcelasGrupo){
+    const ids = state.titulos.filter(x=>x.grupo===t.grupo && x.status==="aberto" && x.id!==t.id && x.parcela>t.parcela).map(x=>x.id);
+    atualizarTitulosOtimista(ids, comuns, "Erro ao salvar");
+  }
+  toast("Alterações salvas.");
+  return true;
 }
