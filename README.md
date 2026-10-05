@@ -34,6 +34,7 @@ Tudo é um **título** — algo a pagar ou a receber:
 - **Todas as contas**: lista completa de títulos com busca e filtros (situação, a pagar/receber, mensais/parceladas/avulsas, conta, pessoa, período) e botão para incluir uma nova conta.
 - **Cartões e faturas**: a fatura de cada cartão no mês é a **soma das compras e parcelas** lançadas nele; "Pagar fatura" aceita o total **ou só uma parte** (abatida dos itens mais antigos primeiro); o que ficar em aberto **rola para a fatura do mês seguinte**. Mostra o total por pessoa e as próximas faturas.
 - **Agenda**: o mês dia a dia com o saldo previsto; mostra onde o dinheiro aperta antes de acontecer.
+- **Visão mensal**: mês a mês, do primeiro lançamento até 6/12/24 meses à frente, o total de **entradas e saídas** (separando recebido/pago do que ainda está em aberto), o resultado do mês e o saldo previsto, com gráfico e filtro por pessoa. Clique num mês para abrir a agenda dele.
 - **Saldos e pessoas**: saldo de cada conta/cartão, **ajuste do saldo real** (para bater com o banco) e quanto cada pessoa deve/tem a receber.
 - **Importar extrato** (CSV/OFX) com **conciliação**: ignora o que já existe, dá baixa em contas em aberto que combinam, e cria o resto já como pago.
 - **Análises**: projeção de 6/12/24 meses, metas por categoria e ranking do mês.

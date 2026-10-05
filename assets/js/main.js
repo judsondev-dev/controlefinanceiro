@@ -8,6 +8,7 @@ const TELAS = {
   lista:    {titulo:"Todas as contas",             mes:true,  render:()=>renderLista()},
   cartoes:  {titulo:"Cartões e faturas",          mes:true,  render:()=>renderCartoes()},
   agenda:   {titulo:"Agenda do mês",                mes:true,  render:()=>renderAgenda()},
+  meses:    {titulo:"Visão mensal",                mes:false, render:()=>renderMeses()},
   contas:   {titulo:"Saldos e pessoas",             mes:true,  render:()=>renderContas()},
   importar: {titulo:"Importar extrato",             mes:false, render:()=>renderImportar()},
   analises: {titulo:"Análises e projeção",          mes:true,  render:()=>renderAnalises()}
@@ -79,7 +80,7 @@ async function iniciar(){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  ligarHoje(); ligarLista(); ligarCartoes(); ligarAgenda(); ligarContas(); ligarImportar(); ligarAnalises();
+  ligarHoje(); ligarMeses(); ligarLista(); ligarCartoes(); ligarAgenda(); ligarContas(); ligarImportar(); ligarAnalises();
 
   document.getElementById("nav").addEventListener("click", e=>{ const b = e.target.closest(".nav-item"); if(b) irPara(b.dataset.view); });
   document.getElementById("mesAnt").addEventListener("click", ()=>mudarMes(-1));
