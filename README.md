@@ -18,6 +18,7 @@ Tudo é um **título** — algo a pagar ou a receber:
 - **Saldo previsto** = saldo real + tudo o que está em aberto até uma data.
 - **Contas mensais** (recorrências) geram títulos de verdade para os próximos 14 meses — sem linhas "virtuais".
 - **Parcelas** são títulos independentes de um mesmo grupo (cada uma é paga na sua data).
+- **Baixa com outro valor**: no menu ⋯, "Pagar/Receber com outro valor" quita o título por inteiro com o valor real (juros, atualização pela Selic, desconto); o previsto fica registrado.
 - **Pagamento parcial**: no menu ⋯ de qualquer conta, "Pagar/Receber parcialmente" registra a parte paga (com data) e deixa o restante em aberto; o que não for resolvido no mês aparece como atrasado no mês seguinte.
 
 ## Desempenho
