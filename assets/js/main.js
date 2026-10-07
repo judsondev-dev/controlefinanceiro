@@ -5,7 +5,7 @@
 
 const TELAS = {
   hoje:     {titulo:"Hoje — o que receber e pagar", mes:true,  render:()=>renderHoje()},
-  lista:    {titulo:"Todas as contas",             mes:true,  render:()=>renderLista()},
+  lista:    {titulo:"Todas as contas",             mes:false,  render:()=>renderLista()},
   cartoes:  {titulo:"Cartões e faturas",          mes:true,  render:()=>renderCartoes()},
   agenda:   {titulo:"Agenda do mês",                mes:true,  render:()=>renderAgenda()},
   meses:    {titulo:"Visão mensal",                mes:false, render:()=>renderMeses()},
