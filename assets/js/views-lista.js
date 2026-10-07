@@ -9,8 +9,17 @@ const lista = {busca:"", status:"aberto", tipo:"", conta:"", pessoa:"", natureza
 
 function natureza(t){ return t.recorrencia_id ? "mensal" : (t.parcelas>1 ? "parcelada" : "avulsa"); }
 
+const mesDoTitulo = t => (t.status==="pago" ? t.pago_em : t.vencimento).slice(0,7);
+
+/** Todos os meses que têm movimento, mais o mês atual e os próximos 12 (ordem cronológica, "AAAA-MM"). */
+function mesesDisponiveis(){
+  const ks = new Set(state.titulos.map(mesDoTitulo)), h = mesDe(hojeISO());
+  for(let i=0;i<=12;i++){ const m = somaMeses(h.ano, h.mes, i); ks.add(m.ano+"-"+pad2(m.mes+1)); }
+  return [...ks].sort();
+}
+const rotuloMes = k => MESES[+k.slice(5,7)-1]+"/"+k.slice(0,4);
+
 function filtrarLista(){
-  const ini = iniMes(state.ano,state.mes), fim = fimMes(state.ano,state.mes);
   const q = norm(lista.busca);
   return state.titulos.filter(t=>{
     if(lista.status && t.status!==lista.status) return false;
@@ -18,10 +27,7 @@ function filtrarLista(){
     if(lista.conta && (lista.conta==="-" ? t.conta_id : t.conta_id!==lista.conta)) return false;
     if(lista.pessoa && (lista.pessoa==="-" ? t.pessoa : t.pessoa!==lista.pessoa)) return false;
     if(lista.natureza && natureza(t)!==lista.natureza) return false;
-    if(lista.periodo==="mes"){
-      const d = t.status==="pago" ? t.pago_em : t.vencimento;
-      if(d<ini || d>fim) return false;
-    }
+    if(lista.periodo!=="tudo" && mesDoTitulo(t)!==lista.periodo) return false;
     if(q && !norm(t.descricao+" "+(t.categoria||"")+" "+(t.pessoa||"")).includes(q)) return false;
     return true;
   }).sort((a,b)=>{
@@ -63,7 +69,9 @@ function renderLista(){
       '<div class="field"><label>Natureza</label>'+sel("fNat", lista.natureza, [["","Todas"],["mensal","Mensais (fixas)"],["parcelada","Parceladas"],["avulsa","Avulsas"]])+'</div>'+
       '<div class="field"><label>Conta</label>'+sel("fConta", lista.conta, [["","Todas"],["-","(sem conta)"],...state.contas.map(c=>[c.id,c.nome])])+'</div>'+
       '<div class="field"><label>Pessoa</label>'+sel("fPessoa", lista.pessoa, [["","Todas"],["-","(sem pessoa)"],...valoresUsados("pessoa").map(p=>[p,p])])+'</div>'+
-      '<div class="field"><label>Período</label>'+sel("fPeriodo", lista.periodo, [["tudo","Todos os meses"],["mes","Só "+MESES[state.mes]+"/"+state.ano]])+'</div>'+
+      '<div class="field"><label>Mês</label><div class="mes-sel"><button type="button" class="btn-ghost btn-sm" id="fPerAnt" title="Mês anterior">‹</button>'+
+        sel("fPeriodo", lista.periodo, [["tudo","Todos os meses"],...mesesDisponiveis().map(k=>[k,rotuloMes(k)])])+
+        '<button type="button" class="btn-ghost btn-sm" id="fPerProx" title="Próximo mês">›</button></div></div>'+
     '</div><div id="listaRes"></div>';
   renderListaResultado();
 }
@@ -75,6 +83,13 @@ function ligarLista(){
   el.addEventListener("input", e=>{ if(e.target.id==="listaBusca"){ lista.busca = e.target.value; lista.limite = 150; renderListaResultado(); } });
   el.addEventListener("click", e=>{
     if(e.target.id==="listaNova") return abrirForm();
+    if(e.target.id==="fPerAnt" || e.target.id==="fPerProx"){
+      const ks = mesesDisponiveis(), h = mesDe(hojeISO()), hoje = h.ano+"-"+pad2(h.mes+1);
+      const i = lista.periodo==="tudo" ? ks.indexOf(hoje) : ks.indexOf(lista.periodo);
+      const j = lista.periodo==="tudo" ? i : i + (e.target.id==="fPerProx" ? 1 : -1);
+      if(ks[j]){ lista.periodo = ks[j]; lista.limite = 150; renderLista(); }
+      return;
+    }
     if(e.target.id==="listaMais"){ lista.limite += 150; return renderListaResultado(); }
     const tr = e.target.closest(".l-row"); if(!tr) return;
     if(e.target.closest("[data-mais]")) acaoMenu(tr.dataset.id); else abrirForm(tr.dataset.id);
